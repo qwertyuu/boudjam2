@@ -33,7 +33,7 @@ function initBroadcastPolling() {
       if (storedBroadcast) {
         const broadcast = JSON.parse(storedBroadcast);
 
-        if (broadcast.id && broadcast.id \!== lastSeenBroadcastId) {
+        if (broadcast.id && broadcast.id !== lastSeenBroadcastId) {
           lastSeenBroadcastId = broadcast.id;
           notifySubscribers(broadcast);
         }
@@ -83,7 +83,7 @@ export function broadcastAction(npcId, action, dialogue = "", additionalData = {
 }
 
 export function subscribeToBroadcasts(callback) {
-  if (typeof callback \!== "function") {
+  if (typeof callback !== "function") {
     console.error("Subscribe callback must be a function");
     return null;
   }
@@ -103,7 +103,7 @@ export function subscribeToBroadcasts(callback) {
 export function unsubscribeFromBroadcasts(callback) {
   const index = broadcastSubscribers.indexOf(callback);
 
-  if (index \!== -1) {
+  if (index !== -1) {
     broadcastSubscribers.splice(index, 1);
     console.log(`[Broadcast] Subscriber removed (total: ${broadcastSubscribers.length})`);
   }
@@ -144,7 +144,7 @@ export function getLastBroadcast() {
 export function getBroadcastStats() {
   return {
     subscribers: broadcastSubscribers.length,
-    pollingActive: pollInterval \!== null,
+    pollingActive: pollInterval !== null,
     lastBroadcastId: lastSeenBroadcastId,
     pollInterval: BROADCAST_POLL_INTERVAL,
     lastBroadcast: getLastBroadcast(),

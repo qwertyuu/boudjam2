@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configuration NPC - Jeu Multijoueur</title>
+    <link rel="stylesheet" href="css/config.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>🎮 Configuration de votre NPC</h1>
+            <p>Créez votre personnage avant de rejoindre le monde</p>
+        </header>
+
+        <div class="config-container">
+            <form id="npcConfigForm" class="npc-config-form">
+                <div class="form-group">
+                    <label for="npcName">Nom du NPC *</label>
+                    <input
+                        type="text"
+                        id="npcName"
+                        name="npcName"
+                        required
+                        placeholder="Ex: Jean, Marie, Alex..."
+                        maxlength="30"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="npcPersonality">Personnalité / Caractère *</label>
+                    <textarea
+                        id="npcPersonality"
+                        name="npcPersonality"
+                        required
+                        placeholder="Décrivez la personnalité de votre NPC: curieux, timide, aventureux, prudent, sociable, solitaire..."
+                        rows="4"
+                        maxlength="300"
+                    ></textarea>
+                    <small class="char-counter"><span id="personalityCount">0</span>/300</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="npcMood">Mood Initial *</label>
+                    <select id="npcMood" name="npcMood" required>
+                        <option value="">-- Sélectionnez un mood --</option>
+                        <option value="joyeux">😊 Joyeux</option>
+                        <option value="triste">😢 Triste</option>
+                        <option value="en colère">😠 En colère</option>
+                        <option value="calme">😌 Calme</option>
+                        <option value="excité">🤩 Excité</option>
+                        <option value="anxieux">😰 Anxieux</option>
+                        <option value="confiant">😎 Confiant</option>
+                        <option value="effrayé">😨 Effrayé</option>
+                        <option value="surpris">😲 Surpris</option>
+                        <option value="ennuyé">😑 Ennuyé</option>
+                        <option value="curieux">🤔 Curieux</option>
+                        <option value="pensif">🤨 Pensif</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="npcObjective">Objectif / Motivation</label>
+                    <textarea
+                        id="npcObjective"
+                        name="npcObjective"
+                        placeholder="Quel est le but ou la motivation de votre NPC dans ce monde? (optionnel)"
+                        rows="3"
+                        maxlength="200"
+                    ></textarea>
+                    <small class="char-counter"><span id="objectiveCount">0</span>/200</small>
+                </div>
+
+                <button type="submit" class="btn-primary">
+                    🚀 Rejoindre la Simulation
+                </button>
+            </form>
+        </div>
+
+        <footer class="footer">
+            <p>Créez un personnage unique avec sa propre personnalité et émotions</p>
+        </footer>
+    </div>
+
+    <script type="module" src="js/config.js"></script>
+</body>
+</html>

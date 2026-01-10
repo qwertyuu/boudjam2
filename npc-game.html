@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monde NPC - Simulation Multijoueur</title>
+    <link rel="stylesheet" href="css/npc-game.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Loading screen -->
+        <div id="loadingScreen">
+            <div class="loading-content">
+                <h1>⚙️ Chargement du Modèle IA</h1>
+                <div class="progress-container">
+                    <div id="progressBar" class="progress-bar"></div>
+                </div>
+                <p id="loadingStatus">Initialisation...</p>
+            </div>
+        </div>
+
+        <!-- Game screen -->
+        <div id="gameScreen" class="hidden">
+            <header class="game-header">
+                <div class="header-left">
+                    <h1>🌍 Monde des NPCs</h1>
+                    <p id="worldStatus">Simulation active</p>
+                </div>
+                <div class="header-right">
+                    <a href="config.html" class="btn-secondary">← Nouvelle Config</a>
+                </div>
+            </header>
+
+            <div class="game-container">
+                <!-- Main NPC Panel (your NPC) -->
+                <div class="main-panel">
+                    <h2>Votre NPC</h2>
+                    <div id="mainNpcCard" class="npc-card main-npc">
+                        <!-- Filled by JS -->
+                    </div>
+
+                    <!-- Controls -->
+                    <div class="controls-panel">
+                        <h3>Contrôles</h3>
+                        <div class="controls-grid">
+                            <button id="pauseBtn" class="btn-control">⏸️ Pause</button>
+                            <button id="historyBtn" class="btn-control">📜 Historique</button>
+                            <button id="resetBtn" class="btn-control">🔄 Réinitialiser</button>
+                        </div>
+                        <div class="speed-control">
+                            <label for="speedSlider">Vitesse de génération:</label>
+                            <input type="range" id="speedSlider" min="1000" max="10000" value="5000" step="500">
+                            <span id="speedValue">5.0s</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Other NPCs Panel -->
+                <div class="side-panel">
+                    <h2>Autres NPCs</h2>
+                    <div id="otherNpcsList" class="npcs-list">
+                        <p class="empty-message">Aucun autre NPC pour le moment...</p>
+                    </div>
+                </div>
+
+                <!-- Events Log -->
+                <div class="events-panel">
+                    <h2>Journal des Événements</h2>
+                    <div id="eventLog" class="event-log">
+                        <!-- Events appear here -->
+                    </div>
+                    <button id="clearLogBtn" class="btn-small">Effacer le log</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- History Modal -->
+        <div id="historyModal" class="modal hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>📜 Historique Complet</h2>
+                    <button id="closeHistoryBtn" class="btn-close">×</button>
+                </div>
+                <div class="modal-body">
+                    <div id="historyContent" class="history-content">
+                        <!-- History entries -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="js/npc-game.js"></script>
+</body>
+</html>

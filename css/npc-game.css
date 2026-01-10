@@ -1,0 +1,503 @@
+/* NPC Game Styles */
+
+.container {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* Loading Screen */
+#loadingScreen {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.loading-content {
+  text-align: center;
+  color: white;
+}
+
+.loading-content h1 {
+  font-size: 32px;
+  margin-bottom: 30px;
+}
+
+.progress-container {
+  width: 400px;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  overflow: hidden;
+  margin: 20px auto;
+}
+
+.progress-bar {
+  height: 100%;
+  background: #FFD700;
+  width: 0%;
+  transition: width 0.3s;
+  border-radius: 4px;
+}
+
+#loadingStatus {
+  font-size: 14px;
+  margin-top: 10px;
+  opacity: 0.9;
+}
+
+/* Game Screen */
+#gameScreen {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #f5f5f5;
+}
+
+.game-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 30px;
+  background: #ffffff;
+  border-bottom: 2px solid #e0e0e0;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.header-left h1 {
+  font-size: 24px;
+  color: #333;
+}
+
+.header-left p {
+  font-size: 12px;
+  color: #666;
+  margin-top: 4px;
+}
+
+.btn-secondary {
+  padding: 8px 16px;
+  background: #6c757d;
+  color: white;
+  text-decoration: none;
+  border-radius: 4px;
+  font-size: 14px;
+  transition: background 0.2s;
+}
+
+.btn-secondary:hover {
+  background: #5a6268;
+}
+
+/* Game Container */
+.game-container {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr 300px;
+  grid-template-rows: 1fr;
+  gap: 20px;
+  padding: 20px;
+  overflow: hidden;
+}
+
+/* Panels */
+.main-panel, .side-panel, .events-panel {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  overflow-y: auto;
+}
+
+.main-panel h2, .side-panel h2, .events-panel h2 {
+  font-size: 18px;
+  margin-bottom: 15px;
+  color: #333;
+  border-bottom: 2px solid #667eea;
+  padding-bottom: 8px;
+}
+
+/* NPC Cards */
+.npc-card {
+  background: #f8f9fa;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+.npc-card.main-npc {
+  border: 2px solid #667eea;
+}
+
+.npc-header {
+  padding: 15px;
+  background: white;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.npc-header h3 {
+  font-size: 20px;
+  color: #333;
+}
+
+.mood-badge {
+  padding: 4px 12px;
+  border-radius: 12px;
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.npc-body {
+  padding: 15px;
+}
+
+.personality, .objective {
+  font-size: 14px;
+  color: #555;
+  margin-bottom: 10px;
+  line-height: 1.4;
+}
+
+.npc-status {
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.status-section {
+  margin-bottom: 12px;
+}
+
+.status-section strong {
+  display: block;
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 4px;
+}
+
+.status-text {
+  font-size: 14px;
+  color: #333;
+  padding: 8px;
+  background: white;
+  border-radius: 4px;
+  border-left: 3px solid #667eea;
+}
+
+.dialogue-text {
+  border-left-color: #28a745;
+  font-style: italic;
+}
+
+.thought-text {
+  border-left-color: #ffc107;
+  opacity: 0.8;
+}
+
+/* Streaming Zone */
+.streaming-zone {
+  margin-top: 15px;
+  padding: 12px;
+  background: #e7f3ff;
+  border-radius: 4px;
+  border: 1px solid #667eea;
+}
+
+.streaming-zone strong {
+  display: block;
+  color: #667eea;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+.streaming-text {
+  font-size: 13px;
+  color: #333;
+  font-family: 'Courier New', monospace;
+  line-height: 1.6;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.streaming-text::after {
+  content: '▊';
+  animation: blink 1s infinite;
+}
+
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+/* Controls Panel */
+.controls-panel {
+  margin-top: 20px;
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.controls-panel h3 {
+  font-size: 16px;
+  margin-bottom: 12px;
+  color: #333;
+}
+
+.controls-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.btn-control {
+  padding: 10px;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-control:hover {
+  background: #5568d3;
+}
+
+.speed-control {
+  margin-top: 12px;
+}
+
+.speed-control label {
+  display: block;
+  font-size: 13px;
+  color: #666;
+  margin-bottom: 8px;
+}
+
+.speed-control input[type="range"] {
+  width: 100%;
+  margin-bottom: 5px;
+}
+
+.speed-control span {
+  font-size: 12px;
+  color: #333;
+  font-weight: 600;
+}
+
+/* Other NPCs List */
+.npcs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.other-npc-card {
+  background: #f8f9fa;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #e0e0e0;
+}
+
+.empty-message {
+  text-align: center;
+  color: #999;
+  font-size: 14px;
+  padding: 40px 20px;
+}
+
+/* Event Log */
+.event-log {
+  flex: 1;
+  overflow-y: auto;
+  margin-bottom: 10px;
+  padding: 10px;
+  background: #f8f9fa;
+  border-radius: 4px;
+  font-size: 13px;
+  max-height: calc(100% - 80px);
+}
+
+.event-entry {
+  padding: 8px;
+  margin-bottom: 5px;
+  background: white;
+  border-radius: 4px;
+  border-left: 3px solid #667eea;
+  line-height: 1.4;
+}
+
+.event-entry.other-npc-event {
+  border-left-color: #28a745;
+  background: #f0fff4;
+}
+
+.timestamp {
+  font-size: 11px;
+  color: #999;
+  margin-right: 8px;
+}
+
+.btn-small {
+  padding: 6px 12px;
+  background: #6c757d;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.btn-small:hover {
+  background: #5a6268;
+}
+
+/* Modal */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal.hidden {
+  display: none;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 800px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.modal-header h2 {
+  font-size: 20px;
+  color: #333;
+}
+
+.btn-close {
+  font-size: 28px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #666;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+.btn-close:hover {
+  background: #f0f0f0;
+}
+
+.modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+}
+
+.history-content {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.history-entry {
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border-left: 3px solid #667eea;
+}
+
+.history-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.history-time {
+  font-size: 12px;
+  color: #999;
+}
+
+.history-mood {
+  font-size: 12px;
+  font-weight: 600;
+  color: #333;
+}
+
+.history-entry p {
+  font-size: 14px;
+  color: #555;
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+.history-entry p:last-child {
+  margin-bottom: 0;
+}
+
+/* Hidden utility */
+.hidden {
+  display: none !important;
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+  .game-container {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto 300px;
+  }
+
+  .events-panel {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 768px) {
+  .game-container {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto 250px;
+  }
+
+  .controls-grid {
+    grid-template-columns: 1fr;
+  }
+}
