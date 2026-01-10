@@ -132,6 +132,7 @@ export class GameAI {
 
       // Debug: log message structure
       console.log(`[${npc.name}] Message roles:`, messages.map(m => m.role).join(' -> '));
+      console.log(`[${npc.name}] Messages:`, messages.map(m => m.content).join('\n\n---\n'));
 
       // Apply chat template
       const fullPrompt = this.processor.apply_chat_template(messages, {
@@ -162,28 +163,44 @@ export class GameAI {
         ...inputs,
         max_new_tokens: 1000, // Shorter for quick NPC responses
         do_sample: true,
-        temperature: 0.8,
+        temperature: 0.2,
         repetition_penalty: 1.2,
         streamer,
       });
 
-      // Parse JSON
+      // Parse and clean JSON response
       let parsedResponse = null;
       let displayText = responseText;
       let mood = 'neutral';
 
       try {
+        // Extract JSON from response
         const jsonMatch = responseText.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
-          parsedResponse = JSON.parse(jsonMatch[0]);
-          displayText = parsedResponse.response || responseText;
-          mood = parsedResponse.mood || 'neutral';
+          const jsonStr = jsonMatch[0];
+          
+          // Clean the JSON string
+          const cleanedJson = this.cleanJSON(jsonStr);
+          
+          // Parse the cleaned JSON
+          parsedResponse = JSON.parse(cleanedJson);
+          
+          // Validate required fields
+          if (parsedResponse.response && typeof parsedResponse.response === 'string') {
+            displayText = parsedResponse.response.trim();
+            mood = parsedResponse.mood || 'neutral';
+          } else {
+            console.warn('Invalid JSON structure - missing response field');
+            displayText = responseText;
+          }
         }
       } catch (e) {
-        console.warn('JSON parse failed for NPC response:', e);
+        console.warn('JSON parse failed for NPC response:', e, 'Raw:', responseText);
         // Fallback to raw text
         displayText = responseText;
       }
+
+      console.log(`[${npc.name}] AI Response:`, displayText);
 
       // Only update conversation history if we have valid response text
       if (displayText && displayText.trim().length > 0) {
@@ -215,6 +232,55 @@ export class GameAI {
     } finally {
       chatState.isGenerating = false;
     }
+  }
+
+  /**
+   * Clean JSON string to ensure valid formatting
+   * Removes extra characters, fixes quotes, and validates structure
+   */
+  cleanJSON(jsonStr) {
+    // Remove leading/trailing whitespace
+    let cleaned = jsonStr.trim();
+
+    // Remove markdown code blocks if present
+    cleaned = cleaned.replace(/^```json\s*/i, '').replace(/\s*```$/, '');
+    cleaned = cleaned.replace(/^```\s*/i, '').replace(/\s*```$/, '');
+
+    // First, let's identify the structure: find response and mood values
+    // This is more robust than trying to fix quotes
+    
+    // Extract the response field content
+    const responseMatch = cleaned.match(/"response"\s*:\s*"((?:[^"\\]|\\.)*?)"\s*,/);
+    const moodMatch = cleaned.match(/"mood"\s*:\s*"([^"]*?)"\s*[}\]]/);
+    
+    if (responseMatch && moodMatch) {
+      const response = responseMatch[1];
+      const mood = moodMatch[1];
+      
+      // Build clean JSON with properly escaped strings
+      return JSON.stringify({
+        response: response,
+        mood: mood
+      });
+    }
+
+    // Fallback: try to fix common quote issues and parse
+    // Replace smart quotes with regular quotes
+    cleaned = cleaned.replace(/[\u201C\u201D]/g, '"'); // "" -> ""
+    cleaned = cleaned.replace(/[\u2018\u2019]/g, "'"); // '' -> ''
+
+    // Remove trailing commas before closing braces/brackets
+    cleaned = cleaned.replace(/,(\s*[}\]])/g, '$1');
+
+    // Ensure the JSON starts with { and ends with }
+    const startIdx = cleaned.indexOf('{');
+    const lastIdx = cleaned.lastIndexOf('}');
+
+    if (startIdx !== -1 && lastIdx !== -1 && lastIdx > startIdx) {
+      cleaned = cleaned.substring(startIdx, lastIdx + 1);
+    }
+
+    return cleaned;
   }
 
   /**
