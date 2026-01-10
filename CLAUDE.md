@@ -9,7 +9,7 @@ This is a browser-based chat interface that runs the Ministral-3-3B AI model loc
 ## Getting Started
 
 **Running the Application:**
-- Open `index.html` (or `chat.html`) in a modern web browser (Chrome 113+, Edge 113+, or Firefox Nightly with WebGPU enabled)
+- Open `index.html` in a modern web browser (Chrome 113+, Edge 113+, or Firefox Nightly with WebGPU enabled)
 - Use a local web server if opening locally via `file://` causes issues:
   - VS Code: Install "Live Server" extension and click "Go Live"
   - Python: `python -m http.server 5501`
@@ -22,7 +22,7 @@ This is a browser-based chat interface that runs the Ministral-3-3B AI model loc
 ## Architecture
 
 ### File Structure
-- `index.html` / `chat.html` - Main chat interface (both are identical)
+- `index.html` - Main chat interface (both are identical)
 - `js/app.js` - Application entry point that initializes the app and sets up event listeners
 - `js/chat.js` - Core chat functionality including UI rendering, message handling, and AI response generation
 - `js/cache.js` - IndexedDB caching utilities for model files (currently exported but not actively used in app.js)
@@ -100,7 +100,6 @@ From `chat.js`:
 ## Development Notes
 
 - The application is intentionally simple: no build tools, no npm dependencies, just vanilla JavaScript with dynamic imports from CDN
-- Two HTML files exist (`index.html` and `chat.html`) with identical content - consolidation could be considered
 - The cache.js module is exported but currently unused - it was likely prepared for future model caching optimization
 - All dependencies (Transformers.js, Mistral model) are loaded from CDN, so internet connectivity is required at runtime
 - The UI is fully responsive with mobile-specific breakpoints in CSS
