@@ -41,6 +41,10 @@ class Game {
     // Event log
     this.eventLogEntries = [];
     this.maxLogEntries = 20;
+
+    // Shared conversation history - tracks all interactions in the game world
+    this.conversationHistory = [];
+    this.maxSharedHistoryLength = 50;
   }
 
   /**
@@ -307,7 +311,16 @@ class Game {
 
     // NPC1 initiates conversation
     try {
-      await this.gameAI.generateNPCResponse(npc1, `You encounter ${npc2.name}. Greet them and comment on meeting them here.`);
+      const sharedContext = this.getSharedConversationContext(npc1) + this.getRecentEventContext(2);
+      await this.gameAI.generateNPCResponse(
+        npc1, 
+        `You encounter ${npc2.name}. Greet them and comment on meeting them here.`,
+        '',
+        sharedContext
+      );
+
+      // Add to shared history
+      this.addToSharedHistory(npc1.name, npc1.currentDialogue);
 
       // Queue NPC2's response
       this.eventQueue.push({
@@ -334,7 +347,18 @@ class Game {
     this.addEventLogEntry('Discovery', `${npc.name} discovers ${event.discovery}`, 'discovery');
 
     try {
-      await this.gameAI.generateNPCResponse(npc, `You discover ${event.discovery}. What is your reaction?`);
+      const sharedContext = this.getSharedConversationContext(npc) + this.getRecentEventContext(2);
+      await this.gameAI.generateNPCResponse(
+        npc, 
+        `You discover ${event.discovery}. What is your reaction?`,
+        '',
+        sharedContext
+      );
+
+      // Add to shared history
+      if (npc.currentDialogue) {
+        this.addToSharedHistory(npc.name, npc.currentDialogue);
+      }
     } catch (error) {
       console.error('Error generating discovery response:', error);
     }
@@ -350,7 +374,18 @@ class Game {
     const npc = event.participants[Math.floor(Math.random() * event.participants.length)];
 
     try {
-      await this.gameAI.generateNPCResponse(npc, `${event.context}. What do you observe or think about this?`);
+      const sharedContext = this.getSharedConversationContext(npc) + this.getRecentEventContext(2);
+      await this.gameAI.generateNPCResponse(
+        npc, 
+        `${event.context}. What do you observe or think about this?`,
+        '',
+        sharedContext
+      );
+
+      // Add to shared history
+      if (npc.currentDialogue) {
+        this.addToSharedHistory(npc.name, npc.currentDialogue);
+      }
     } catch (error) {
       console.error('Error generating world event response:', error);
     }
@@ -365,7 +400,18 @@ class Game {
     this.addEventLogEntry('Observation', event.context, 'observation');
 
     try {
-      await this.gameAI.generateNPCResponse(npc, `You pause to observe your surroundings. What do you notice or think about?`);
+      const sharedContext = this.getSharedConversationContext(npc) + this.getRecentEventContext(2);
+      await this.gameAI.generateNPCResponse(
+        npc, 
+        `You pause to observe your surroundings. What do you notice or think about?`,
+        '',
+        sharedContext
+      );
+
+      // Add to shared history
+      if (npc.currentDialogue) {
+        this.addToSharedHistory(npc.name, npc.currentDialogue);
+      }
     } catch (error) {
       console.error('Error generating observation response:', error);
     }
@@ -378,10 +424,74 @@ class Game {
     const [npc, otherNpc] = event.participants;
 
     try {
-      await this.gameAI.generateNPCResponse(npc, event.context);
+      const sharedContext = this.getSharedConversationContext(npc) + this.getRecentEventContext(2);
+      await this.gameAI.generateNPCResponse(
+        npc, 
+        event.context,
+        '',
+        sharedContext
+      );
+
+      // Add to shared history
+      if (npc.currentDialogue) {
+        this.addToSharedHistory(npc.name, npc.currentDialogue);
+      }
     } catch (error) {
       console.error('Error generating response:', error);
     }
+  }
+
+  /**
+   * Add to shared conversation history
+   * Called when an NPC generates a response to track all interactions
+   */
+  addToSharedHistory(npcName, message) {
+    this.conversationHistory.push({
+      npc: npcName,
+      message: message,
+      timestamp: Date.now(),
+    });
+
+    // Keep history size manageable
+    if (this.conversationHistory.length > this.maxSharedHistoryLength) {
+      this.conversationHistory = this.conversationHistory.slice(-this.maxSharedHistoryLength);
+    }
+  }
+
+  /**
+   * Get context about recent conversations for an NPC
+   * Returns formatted string of recent interactions other NPCs have had
+   */
+  getSharedConversationContext(excludeNpc = null) {
+    if (this.conversationHistory.length === 0) {
+      return '';
+    }
+
+    // Get last 5 conversations, excluding the NPC if specified
+    const recentConversations = this.conversationHistory
+      .slice(-5)
+      .filter(entry => !excludeNpc || entry.npc !== excludeNpc.name)
+      .map(entry => `${entry.npc} said: "${entry.message}"`)
+      .join('\n');
+
+    return recentConversations ? `\nRecent conversations you heard:\n${recentConversations}` : '';
+  }
+
+  /**
+   * Get context about what happened near an NPC
+   * Returns a summary of recent events
+   */
+  getRecentEventContext(limit = 3) {
+    if (this.eventLogEntries.length === 0) {
+      return '';
+    }
+
+    const recentEvents = this.eventLogEntries
+      .slice(-limit)
+      .map(entry => `- ${entry.text}`)
+      .join('\n');
+
+    return `\nThings happening around you:\n${recentEvents}`;
   }
 
   /**

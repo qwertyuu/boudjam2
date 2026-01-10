@@ -91,7 +91,7 @@ export class GameAI {
   /**
    * Generate NPC-specific response
    */
-  async generateNPCResponse(npc, prompt, context = '') {
+  async generateNPCResponse(npc, prompt, context = '', sharedContext = '') {
     if (!this.isInitialized) {
       throw new Error('GameAI not initialized');
     }
@@ -118,6 +118,9 @@ export class GameAI {
         }
       }
 
+      // Combine context: world context + shared conversation context
+      const fullContext = [context, sharedContext].filter(c => c && c.trim().length > 0).join('\n');
+      
       const messages = [
         {
           role: 'system',
@@ -126,7 +129,7 @@ export class GameAI {
         ...validHistory,
         {
           role: 'user',
-          content: context ? `${context}\n${prompt}` : prompt,
+          content: fullContext ? `${fullContext}\n${prompt}` : prompt,
         },
       ];
 
