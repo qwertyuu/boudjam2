@@ -90,6 +90,40 @@ body {
   align-items: center;
 }
 
+/* System Prompt Area */
+#system-prompt-area {
+  padding: 12px 20px;
+  background: #fafafa;
+  border-bottom: 1px solid #e0e0e0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+#system-prompt-area label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+#system-prompt {
+  padding: 10px 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+  font-size: 13px;
+  resize: vertical;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+#system-prompt:focus {
+  border-color: #ff8205;
+  background: white;
+}
+
 .chat-header h1 {
   font-size: 20px;
   color: #1e1e1e;

@@ -30,6 +30,7 @@ export const elements = {
   statusText: null,
   statsSpan: null,
   headerStats: null,
+  systemPrompt: null,
 };
 
 /**
@@ -46,6 +47,7 @@ export function initElements() {
   elements.statusText = document.getElementById('status');
   elements.statsSpan = document.getElementById('stats');
   elements.headerStats = document.getElementById('header-stats');
+  elements.systemPrompt = document.getElementById('system-prompt');
 }
 
 /**
@@ -143,20 +145,20 @@ export async function generateResponse(userMessage) {
     // Add user message to history
     chatState.messages.push({ role: 'user', content: userMessage });
 
-    // Build chat messages with JSON structure requirement
-    const chatMessages = [
-      {
-        role: 'system',
-        content: `You are a helpful, concise AI assistant. You MUST respond with ONLY valid JSON in this exact format:
-{
-  "response": "your answer here",
-  "type": "text"
-}
+    // Build chat messages with custom system prompt
+    const chatMessages = [];
 
-Do not add any text before or after the JSON. The JSON must be valid and parseable.`
-      },
-      ...chatState.messages,
-    ];
+    // Add system prompt if provided
+    const systemPromptText = elements.systemPrompt.value.trim();
+    if (systemPromptText) {
+      chatMessages.push({
+        role: 'system',
+        content: systemPromptText
+      });
+    }
+
+    // Add conversation history
+    chatMessages.push(...chatState.messages);
 
     // Apply chat template
     const prompt = chatState.processor.apply_chat_template(chatMessages, {
@@ -212,50 +214,19 @@ Do not add any text before or after the JSON. The JSON must be valid and parseab
       repetition_penalty: 1.2,
     });
 
-    // Finalize message - Parse JSON if present
+    // Finalize message
     contentDiv.classList.remove('streaming');
 
-    // Try to extract and parse JSON
-    let parsedResponse = null;
-    let displayText = fullText;
+    // Display the full response directly (no JSON parsing)
+    contentDiv.textContent = fullText;
 
-    try {
-      // Try to find JSON in the response
-      const jsonMatch = fullText.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        parsedResponse = JSON.parse(jsonMatch[0]);
-        displayText = parsedResponse.response || fullText;
-        // Ensure displayText is a string
-        if (typeof displayText !== 'string') {
-          displayText = JSON.stringify(displayText);
-        }
-      }
-    } catch (jsonError) {
-      console.warn('Could not parse JSON response:', jsonError);
-      // Fallback to raw text if JSON parsing fails
-      displayText = fullText;
-    }
-
-    // Ensure displayText is always a string
-    if (typeof displayText !== 'string') {
-      displayText = String(displayText);
-    }
-
-    // Update display with parsed content
-    contentDiv.textContent = displayText;
-
-    // Store the original response (with JSON if available)
+    // Store the response
     chatState.messages.push({
       role: 'assistant',
-      content: displayText,
-      raw: fullText,
-      parsed: parsedResponse
+      content: fullText
     });
 
-    console.log('Réponse générée:', displayText.substring(0, 50) + '...');
-    if (parsedResponse) {
-      console.log('JSON structuré:', parsedResponse);
-    }
+    console.log('Réponse générée:', fullText.substring(0, 50) + '...');
   } catch (error) {
     console.error('Erreur lors de la génération:', error);
     const errorDiv = document.createElement('div');
