@@ -13,7 +13,7 @@
   - Personnalité/caractère (traits de caractère)
   - Mood initial (état émotionnel de départ)
   - Objectif/motivation du NPC
-- Bouton "Lancer la simulation" pour démarrer
+- Bouton "Rejoindre la simulation" pour démarrer
 
 ### 1.3 Stockage décentralisé
 - Chaque joueur stocke ses données localement (IndexedDB/localStorage)
@@ -196,7 +196,7 @@ MOOD: [nouveau mood]
 ### 8.2 Partage inter-joueurs
 - Broadcast uniquement des actions visibles (action, dialogue)
 - Chaque joueur reconstruit sa vision du monde
-- Pas de serveur central : peer-to-peer ou événements locaux
+- Serveur central
 
 ---
 
@@ -242,22 +242,3 @@ MOOD: [nouveau mood]
 - Gestion mémoire pour plusieurs générations simultanées
 - File d'attente si trop de NPCs actifs
 - Libération des ressources
-
----
-
-## 11. ÉVOLUTIVITÉ
-
-### 11.1 Phase 1 (MVP)
-- 2-4 NPCs maximum
-- Monde textuel simple
-- Interactions basiques
-
-### 11.2 Phase 2
-- Canvas visuel pour représenter le monde
-- Plus de NPCs (5-10)
-- Événements globaux (météo, quêtes)
-
-### 11.3 Phase 3
-- Networking P2P réel
-- Sauvegarde/chargement de parties
-- NPCs qui peuvent "mourir" ou "partir"
