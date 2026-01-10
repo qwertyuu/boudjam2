@@ -14,7 +14,7 @@ class Game {
     this.canvas = null;
     this.ctx = null;
     this.lastFrameTime = 0;
-    this.targetFPS = 60;
+    this.targetFPS = 20; // Slowed down from 60 to 20 FPS
     this.frameInterval = 1000 / this.targetFPS;
 
     // Game state
@@ -314,7 +314,7 @@ class Game {
       const sharedContext = this.getSharedConversationContext(npc1) + this.getRecentEventContext(2);
       await this.gameAI.generateNPCResponse(
         npc1, 
-        `You encounter ${npc2.name}. Greet them and comment on meeting them here.`,
+        `Tu rencontres ${npc2.name}. Salue-le et commente ta rencontre avec lui ici.`,
         '',
         sharedContext
       );
@@ -326,7 +326,7 @@ class Game {
       this.eventQueue.push({
         type: EVENT_TYPES.RESPONSE,
         participants: [npc2, npc1],
-        context: `Respond to ${npc1.name} who said: "${npc1.currentDialogue}"`,
+        context: `Réponds à ${npc1.name} qui a dit: "${npc1.currentDialogue}"`,
         timestamp: Date.now(),
       });
 
@@ -350,7 +350,7 @@ class Game {
       const sharedContext = this.getSharedConversationContext(npc) + this.getRecentEventContext(2);
       await this.gameAI.generateNPCResponse(
         npc, 
-        `You discover ${event.discovery}. What is your reaction?`,
+        `Tu découvres ${event.discovery}. Quelle est ta réaction?`,
         '',
         sharedContext
       );
@@ -377,7 +377,7 @@ class Game {
       const sharedContext = this.getSharedConversationContext(npc) + this.getRecentEventContext(2);
       await this.gameAI.generateNPCResponse(
         npc, 
-        `${event.context}. What do you observe or think about this?`,
+        `${event.context}. Qu'observes-tu ou que penses-tu de cela?`,
         '',
         sharedContext
       );
@@ -403,7 +403,7 @@ class Game {
       const sharedContext = this.getSharedConversationContext(npc) + this.getRecentEventContext(2);
       await this.gameAI.generateNPCResponse(
         npc, 
-        `You pause to observe your surroundings. What do you notice or think about?`,
+        `Tu t'arrêtes pour observer tes alentours. Que remarques-tu ou que penses-tu?`,
         '',
         sharedContext
       );
@@ -471,10 +471,10 @@ class Game {
     const recentConversations = this.conversationHistory
       .slice(-5)
       .filter(entry => !excludeNpc || entry.npc !== excludeNpc.name)
-      .map(entry => `${entry.npc} said: "${entry.message}"`)
+      .map(entry => `${entry.npc} a dit: "${entry.message}"`)
       .join('\n');
 
-    return recentConversations ? `\nRecent conversations you heard:\n${recentConversations}` : '';
+    return recentConversations ? `\nConversations récentes que tu as entendu:\n${recentConversations}` : '';
   }
 
   /**
@@ -491,7 +491,7 @@ class Game {
       .map(entry => `- ${entry.text}`)
       .join('\n');
 
-    return `\nThings happening around you:\n${recentEvents}`;
+    return `\nChoses qui se passent autour de toi:\n${recentEvents}`;
   }
 
   /**
