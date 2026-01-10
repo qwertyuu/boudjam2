@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fantasy RPG - AI Watch Mode</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="css/game.css">
+</head>
+<body>
+  <div id="game-app">
+    <!-- Loading Screen -->
+    <div id="game-loading">
+      <h1>Loading Fantasy RPG World...</h1>
+      <progress id="game-progress" value="0" max="100"></progress>
+      <p id="game-status">Initializing...</p>
+    </div>
+
+    <!-- Game Canvas Container -->
+    <div id="game-container" class="hidden">
+      <canvas id="game-canvas" width="800" height="600"></canvas>
+
+      <!-- UI Overlay -->
+      <div id="game-ui">
+        <div class="ui-panel top-panel">
+          <h2>Fantasy RPG - Watch Mode</h2>
+          <div class="controls">
+            <button id="pause-btn">Pause</button>
+            <button id="reset-btn">Reset</button>
+            <a href="index.html" class="chat-link">Chat Mode</a>
+          </div>
+        </div>
+
+        <div class="ui-panel event-log">
+          <h3>Event Log</h3>
+          <div id="event-log-content"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="js/game.js"></script>
+</body>
+</html>
