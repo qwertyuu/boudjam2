@@ -302,6 +302,33 @@ button {
   font-size: 14px;
 }
 
+/* Utility Classes */
+.hidden {
+  display: none !important;
+}
+
+/* Chat Header with Mode Toggle */
+.chat-header-stats {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.mode-toggle-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white !important;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.mode-toggle-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
 /* Responsive */
 @media (max-width: 600px) {
   .message-content {
@@ -319,5 +346,16 @@ button {
   button {
     padding: 8px 16px;
     font-size: 13px;
+  }
+
+  .chat-header-stats {
+    flex-direction: column;
+    width: 100%;
+    align-items: stretch;
+  }
+
+  .mode-toggle-btn {
+    width: 100%;
+    padding: 10px 16px;
   }
 }
