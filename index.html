@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ministral Chat - Text Mode</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Loading Screen -->
+    <div id="loading">
+      <h1>Chargement du modèle Ministral-3B...</h1>
+      <progress id="progress" value="0" max="100"></progress>
+      <p id="status">Initialisation...</p>
+    </div>
+
+    <!-- Chat Interface -->
+    <div id="chat">
+      <div class="chat-header">
+        <h1>Ministral Chat - Mode Texte</h1>
+        <div class="chat-header-stats">
+          <div id="header-stats">Prêt</div>
+        </div>
+      </div>
+
+      <div id="messages" class="empty"></div>
+
+      <div id="input-area">
+        <div class="input-wrapper">
+          <textarea
+            id="user-input"
+            placeholder="Tapez votre message... (Entrée pour envoyer, Maj+Entrée pour nouvelle ligne)"
+            rows="1"
+          ></textarea>
+          <div class="stats-info">
+            <span id="stats">TTFT: — | Tokens/s: —</span>
+          </div>
+        </div>
+        <div class="button-group">
+          <button id="send-btn">Envoyer</button>
+          <button id="clear-btn">Effacer</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
