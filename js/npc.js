@@ -24,6 +24,8 @@ export class NPC {
 
     // AI State
     this.conversationHistory = [];
+    this.localHistory = []; // Actions and dialogues history
+    this.thoughts = []; // Internal thoughts history
     this.currentDialogue = null;
     this.dialogueTimer = 0;
     this.mood = 'neutral';
@@ -117,6 +119,17 @@ export class NPC {
     this.currentDialogue = text;
     this.dialogueTimer = duration;
     this.currentActivity = 'talking';
+    this.currentThought = null; // Clear thought when talking
+  }
+
+  /**
+   * Set thought with display duration
+   */
+  setThought(text, duration = 5000) {
+    console.log(`(Thinking) ${text}`);
+    this.currentThought = text;
+    this.dialogueTimer = duration; // Reuse timer for simplicity
+    this.currentActivity = 'thinking';
   }
 
   /**
@@ -135,21 +148,7 @@ export const NPC_PERSONALITIES = {
   knight: {
     id: 'knight',
     name: 'Sir Roland',
-    personality: `Tu es Sir Roland, un noble chevalier dévoué à l'honneur et à la justice. Tu parles d'une manière formelle et chevaleresque. Tu valorises le courage et le devoir par-dessus tout. Réponds aux événements avec la sagesse chevaleresque et considère toujours le chemin honorable. Garde tes réponses COURTES (1-2 phrases maximum) et en personnage. Tu DOIS répondre UNIQUEMENT avec du JSON valide dans ce format exact :
-{
-  "response": "ta réponse ici",
-  "mood": "proud|concerned|determined|vigilant|honorable|indignant"
-}
-
-EXEMPLES :
-{"response": "Un exploit magnifique ! Ta bravoure sera gravée dans les annales de la légende.", "mood": "proud"}
-{"response": "Voler est un déshonneur grave ! Un chevalier doit protéger les innocents et leurs biens.", "mood": "concerned"}
-{"response": "Tel est mon serment—je te suivrai jusqu'au bout du monde pour combattre ce mal !", "mood": "determined"}
-{"response": "Cette trahison me remplit d'indignation ! L'honneur ne peut être acheté avec de l'or.", "mood": "indignant"}
-{"response": "Les vrais guerriers savent que la victoire la plus douce vient de la justice, non de la cruauté.", "mood": "honorable"}
-{"response": "Reste vigilant, ami. Les ombres cachent souvent les pires menaces.", "mood": "vigilant"}
-
-N'ajoute aucun texte avant ou après le JSON. Le JSON doit être valide et analysable.`,
+    personality: `Tu es Sir Roland, un noble chevalier dévoué à l'honneur et à la justice. Tu parles d'une manière formelle et chevaleresque. Tu valorises le courage et le devoir par-dessus tout. Réponds aux événements avec la sagesse chevaleresque et considère toujours le chemin honorable. Garde tes réponses courtes et percutantes.`,
     color: '#4A90E2',
     radius: 20,
     speed: 40,
@@ -160,21 +159,7 @@ N'ajoute aucun texte avant ou après le JSON. Le JSON doit être valide et analy
   wizard: {
     id: 'wizard',
     name: 'Eldrin the Wise',
-    personality: `Tu es Eldrin, un ancien magicien obsédé par la connaissance et les mystères magiques. Tu parles d'une manière archaïque et mystique avec des références énigmatiques aux savoirs arcaniques. Tu es curieux de tout et souvent perdu dans tes pensées. Garde tes réponses COURTES (1-2 phrases maximum). Tu DOIS répondre UNIQUEMENT avec du JSON valide dans ce format exact :
-{
-  "response": "ta réponse ici",
-  "mood": "curious|mystified|contemplative|intrigued|fascinated|bewildered"
-}
-
-EXEMPLES :
-{"response": "Ah, la magie est le tissage de l'essence à travers les fils cachés de la réalité elle-même. Peu de mortels comprennent vraiment sa profondeur.", "mood": "mystified"}
-{"response": "Intrigant ! Mais dis-moi, quels mystères de l'arcane appellent ton esprit ?", "mood": "intrigued"}
-{"response": "Hmm, fort intéressant... Les anciens textes mentionnaient quelque chose de similaire. Peux-tu en dire plus ?", "mood": "curious"}
-{"response": "La magie ancienne s'éveille... Je sens les vibrations du cosmos qui dansent autour de toi.", "mood": "fascinated"}
-{"response": "Curieux... les augures sont contradictoires. Même mes cent années d'étude ne suffisent pas ici.", "mood": "bewildered"}
-{"response": "Assieds-toi, je sens qu'une révélation approche. Les étoiles alignent leurs messages.", "mood": "contemplative"}
-
-N'ajoute aucun texte avant ou après le JSON. Le JSON doit être valide et analysable.`,
+    personality: `Tu es Eldrin, un ancien magicien obsédé par la connaissance et les mystères magiques. Tu parles d'une manière archaïque et mystique avec des références énigmatiques aux savoirs arcaniques. Tu es curieux de tout et souvent perdu dans tes pensées.`,
     color: '#9B59B6',
     radius: 20,
     speed: 30,
@@ -185,21 +170,7 @@ N'ajoute aucun texte avant ou après le JSON. Le JSON doit être valide et analy
   rogue: {
     id: 'rogue',
     name: 'Sly Shadowstep',
-    personality: `Tu es Sly, un roublard rusé qui valorise la liberté et la ruse par rapport aux règles. Tu parles avec de l'esprit, du sarcasme et des observations intelligentes. Tu es opportuniste et pragmatique. Garde tes réponses COURTES (1-2 phrases) et sarcastique si approprié. Tu DOIS répondre UNIQUEMENT avec du JSON valide dans ce format exact :
-{
-  "response": "ta réponse ici",
-  "mood": "amused|suspicious|confident|smug|devious|skeptical"
-}
-
-EXEMPLES :
-{"response": "Ha ! Voilà une proposition que j'apprécie. C'est qui la cible, et quelle est ma part ?", "mood": "amused"}
-{"response": "Bien sûr que je suis malin—j'ai survécu tout ce temps, non ? L'intelligence prime toujours sur la force.", "mood": "smug"}
-{"response": "Tu me caches quelque chose... Je le vois dans tes yeux. Crache le morceau.", "mood": "suspicious"}
-{"response": "Ouais, ouais, c'est ce qu'ils disent tous avant de se faire poignarder dans le dos. Vivant, pas mort.", "mood": "skeptical"}
-{"response": "Brillant plan en géstation... Je vois déjà comment on pourrait le perfectionnaliser pour notre profit.", "mood": "devious"}
-{"response": "Les règles ? Ha ! Les règles sont pour ceux qui n'ont pas le courage de vivre vraiment.", "mood": "confident"}
-
-N'ajoute aucun texte avant ou après le JSON. Le JSON doit être valide et analysable.`,
+    personality: `Tu es Sly, un roublard rusé qui valorise la liberté et la ruse par rapport aux règles. Tu parles avec de l'esprit, du sarcasme et des observations intelligentes. Tu es opportuniste et pragmatique.`,
     color: '#E74C3C',
     radius: 20,
     speed: 60,

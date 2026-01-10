@@ -8,6 +8,8 @@ import { EventGenerator, EVENT_TYPES } from './events.js';
 import { GameAI } from './gameAI.js';
 import { chatState } from './chat.js';
 import { cacheDB } from './cache.js';
+import { SetupManager } from './setup.js';
+import { NetworkManager } from './network.js';
 
 class Game {
   constructor() {
@@ -19,13 +21,17 @@ class Game {
 
     // Game state
     this.npcs = [];
+    this.playerNPC = null;
     this.eventQueue = [];
     this.isPaused = false;
     this.isModelLoaded = false;
+    this.isInGame = false;
 
     // Systems
     this.gameAI = new GameAI();
     this.eventGenerator = null;
+    this.setupManager = null;
+    this.networkManager = null;
 
     // DOM elements
     this.elements = {
@@ -72,15 +78,37 @@ class Game {
       return;
     }
 
-    // Load model
+    // Initialize Setup Manager
+    this.setupManager = new SetupManager((playerData) => this.startGame(playerData));
+    this.setupManager.init();
+
+    // Load model immediately in background
     await this.loadModel();
 
-    // Initialize game world
-    this.initializeWorld();
+    // Check if we have data, if not show setup, else start
+    const savedData = localStorage.getItem('my_npc_data');
+    if (!savedData) {
+      this.elements.loading.style.display = 'none';
+      this.setupManager.show();
+    } else {
+      this.startGame(JSON.parse(savedData));
+    }
+  }
+
+  /**
+   * Start the game with player data
+   */
+  startGame(playerData) {
+    this.elements.loading.style.display = 'flex'; // Show loading while world inits
+
+    // Initialize game world with player
+    this.initializeWorld(playerData);
 
     // Show game
     this.elements.loading.style.display = 'none';
     this.elements.container.classList.remove('hidden');
+
+    this.isInGame = true;
 
     // Start game loop
     this.isModelLoaded = true;
@@ -115,13 +143,25 @@ class Game {
   /**
    * Initialize game world
    */
-  initializeWorld() {
-    // Create NPCs
-    this.npcs = [
-      new NPC(NPC_PERSONALITIES.knight),
-      new NPC(NPC_PERSONALITIES.wizard),
-      new NPC(NPC_PERSONALITIES.rogue),
-    ];
+  initializeWorld(playerData) {
+    // Create Default NPCs - REMOVED
+    // Only player NPCs are active now
+
+    // Create Player NPC
+    this.playerNPC = new NPC({
+      id: playerData.id,
+      name: playerData.name,
+      personality: `Tu es ${playerData.name}. ${playerData.personality}`,
+      startX: playerData.startX,
+      startY: playerData.startY,
+      color: playerData.color,
+      radius: playerData.radius,
+      speed: playerData.speed
+    });
+    this.playerNPC.mood = playerData.mood;
+
+    // Combine them
+    this.npcs = [this.playerNPC];
 
     // Set world bounds for all NPCs
     this.npcs.forEach((npc) => {
@@ -131,8 +171,12 @@ class Game {
     // Create event generator
     this.eventGenerator = new EventGenerator(this);
 
+    // Initialize Network
+    this.networkManager = new NetworkManager(this);
+    this.networkManager.connect(playerData);
+
     // Add initial world event
-    this.addEventLogEntry('Game Started', 'Welcome to Fantasy RPG - Watch Mode!');
+    this.addEventLogEntry('Game Started', 'Welcome to the Autonomous World!');
   }
 
   /**
@@ -313,7 +357,7 @@ class Game {
     try {
       const sharedContext = this.getSharedConversationContext(npc1) + this.getRecentEventContext(2);
       await this.gameAI.generateNPCResponse(
-        npc1, 
+        npc1,
         `Tu rencontres ${npc2.name}. Salue-le et commente ta rencontre avec lui ici.`,
         '',
         sharedContext
@@ -333,6 +377,15 @@ class Game {
       // Update interaction times
       npc1.lastInteractionTime = Date.now();
       npc2.lastInteractionTime = Date.now();
+
+      // Broadcast if Player NPC
+      if (npc1 === this.playerNPC && this.networkManager) {
+        this.networkManager.sendEvent('DIALOGUE', {
+          text: npc1.currentDialogue,
+          duration: 6000
+        });
+      }
+
     } catch (error) {
       console.error('Error generating encounter response:', error);
     }
@@ -349,7 +402,7 @@ class Game {
     try {
       const sharedContext = this.getSharedConversationContext(npc) + this.getRecentEventContext(2);
       await this.gameAI.generateNPCResponse(
-        npc, 
+        npc,
         `Tu découvres ${event.discovery}. Quelle est ta réaction?`,
         '',
         sharedContext
@@ -376,7 +429,7 @@ class Game {
     try {
       const sharedContext = this.getSharedConversationContext(npc) + this.getRecentEventContext(2);
       await this.gameAI.generateNPCResponse(
-        npc, 
+        npc,
         `${event.context}. Qu'observes-tu ou que penses-tu de cela?`,
         '',
         sharedContext
@@ -402,7 +455,7 @@ class Game {
     try {
       const sharedContext = this.getSharedConversationContext(npc) + this.getRecentEventContext(2);
       await this.gameAI.generateNPCResponse(
-        npc, 
+        npc,
         `Tu t'arrêtes pour observer tes alentours. Que remarques-tu ou que penses-tu?`,
         '',
         sharedContext
@@ -426,7 +479,7 @@ class Game {
     try {
       const sharedContext = this.getSharedConversationContext(npc) + this.getRecentEventContext(2);
       await this.gameAI.generateNPCResponse(
-        npc, 
+        npc,
         event.context,
         '',
         sharedContext
@@ -542,10 +595,12 @@ class Game {
     // Draw NPCs
     this.npcs.forEach((npc) => this.drawNPC(npc));
 
-    // Draw speech bubbles
+    // Draw speech/thought bubble
     this.npcs.forEach((npc) => {
       if (npc.currentDialogue) {
-        this.drawSpeechBubble(npc);
+        this.drawSpeechBubble(npc, false);
+      } else if (npc.currentThought) {
+        this.drawSpeechBubble(npc, true);
       }
     });
   }
@@ -585,7 +640,14 @@ class Game {
     this.ctx.fill();
 
     // Draw outline based on activity
-    this.ctx.strokeStyle = npc.currentActivity === 'talking' ? '#FFD700' : '#000000';
+    if (npc.currentActivity === 'talking') {
+      this.ctx.strokeStyle = '#FFD700'; // Gold
+    } else if (npc.currentActivity === 'thinking') {
+      this.ctx.strokeStyle = '#3498DB'; // Blue
+    } else {
+      this.ctx.strokeStyle = '#000000';
+    }
+
     this.ctx.lineWidth = 2;
     this.ctx.stroke();
 
@@ -594,6 +656,23 @@ class Game {
     this.ctx.font = 'bold 12px Arial';
     this.ctx.textAlign = 'center';
     this.ctx.fillText(npc.name, npc.x, npc.y + npc.radius + 15);
+
+    // Draw mood emoji/indicator
+    if (npc.mood) {
+      this.ctx.font = '14px Arial';
+      let emoji = '';
+      // Simple mapping
+      if (npc.mood.includes('joy') || npc.mood.includes('heureux')) emoji = '😊';
+      else if (npc.mood.includes('tris') || npc.mood.includes('sad')) emoji = '😢';
+      else if (npc.mood.includes('col') || npc.mood.includes('angry')) emoji = '😠';
+      else if (npc.mood.includes('calm')) emoji = '😐';
+      else if (npc.mood.includes('excit') || npc.mood.includes('proud')) emoji = '🤩';
+      else if (npc.mood.includes('peur') || npc.mood.includes('fear')) emoji = '😱';
+
+      if (emoji) {
+        this.ctx.fillText(emoji, npc.x + npc.radius, npc.y - npc.radius);
+      }
+    }
 
     // Draw activity indicator (movement arrow)
     if (npc.currentActivity === 'walking' && (npc.vx !== 0 || npc.vy !== 0)) {
@@ -621,20 +700,24 @@ class Game {
     }
   }
 
+
   /**
-   * Draw speech bubble
+   * Draw speech or thought bubble
    */
-  drawSpeechBubble(npc) {
+  drawSpeechBubble(npc, isThought = false) {
+    const text = isThought ? npc.currentThought : npc.currentDialogue;
+    if (!text) return;
+
     const bubbleWidth = 200;
     const padding = 10;
     const lineHeight = 16;
 
     // Wrap text
-    const words = npc.currentDialogue.split(' ');
+    const words = text.split(' ');
     const lines = [];
     let currentLine = '';
 
-    this.ctx.font = '12px Arial';
+    this.ctx.font = isThought ? 'italic 12px Arial' : '12px Arial';
     words.forEach((word) => {
       const testLine = currentLine + (currentLine ? ' ' : '') + word;
       const metrics = this.ctx.measureText(testLine);
@@ -648,31 +731,83 @@ class Game {
     lines.push(currentLine);
 
     const bubbleHeight = lines.length * lineHeight + padding * 2;
-    const bubbleX = npc.x - bubbleWidth / 2;
-    const bubbleY = npc.y - npc.radius - bubbleHeight - 20;
+
+    // Calculate preferred position (centered above NPC)
+    let bubbleX = npc.x - bubbleWidth / 2;
+    let bubbleY = npc.y - npc.radius - bubbleHeight - 20;
+
+    // Clamp to screen bounds with some padding
+    const screenPadding = 10;
+    bubbleX = Math.max(screenPadding, Math.min(bubbleX, this.canvas.width - bubbleWidth - screenPadding));
+
+    // For Y, we try to keep it above. If it goes off top, we might need to clamp.
+    // Ideally if it clamps to top, it might overlap NPC. That's acceptable for "visibility".
+    bubbleY = Math.max(screenPadding, Math.min(bubbleY, this.canvas.height - bubbleHeight - screenPadding));
 
     // Draw bubble background
-    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
-    this.ctx.strokeStyle = '#000000';
+    this.ctx.fillStyle = isThought ? 'rgba(240, 248, 255, 0.95)' : 'rgba(255, 255, 255, 0.95)'; // Slight blue for thoughts
+    this.ctx.strokeStyle = isThought ? '#3498DB' : '#000000';
     this.ctx.lineWidth = 2;
+
+    // Dashed line for thoughts
+    if (isThought) {
+      this.ctx.setLineDash([5, 5]);
+    } else {
+      this.ctx.setLineDash([]);
+    }
 
     // Rounded rectangle
     this.roundRect(this.ctx, bubbleX, bubbleY, bubbleWidth, bubbleHeight, 10);
     this.ctx.fill();
     this.ctx.stroke();
 
+    // Reset dash
+    this.ctx.setLineDash([]);
+
     // Draw tail
+    // We need to calculate where the tail connects to the bubble.
+    // It should be the point on the bottom of the bubble closest to the NPC.
+    const tailBaseX = Math.max(bubbleX + 20, Math.min(npc.x, bubbleX + bubbleWidth - 20));
+    const tailBaseY = bubbleY + bubbleHeight;
+
+    // Determine target point on NPC
+    const npcTargetX = npc.x;
+    const npcTargetY = npc.y - npc.radius;
+
     this.ctx.beginPath();
-    this.ctx.moveTo(npc.x - 10, bubbleY + bubbleHeight);
-    this.ctx.lineTo(npc.x, npc.y - npc.radius);
-    this.ctx.lineTo(npc.x + 10, bubbleY + bubbleHeight);
-    this.ctx.closePath();
-    this.ctx.fill();
-    this.ctx.stroke();
+    if (isThought) {
+      // Thought bubbles tail (circles)
+      // Interpolate between tailBase and npcTarget
+      const dx = npcTargetX - tailBaseX;
+      const dy = npcTargetY - tailBaseY;
+
+      this.ctx.arc(tailBaseX + dx * 0.2, tailBaseY + dy * 0.2 + 5, 4, 0, Math.PI * 2);
+      this.ctx.arc(tailBaseX + dx * 0.4, tailBaseY + dy * 0.4 + 5, 3, 0, Math.PI * 2);
+      this.ctx.fill();
+    } else {
+      // Speech tail
+      this.ctx.moveTo(tailBaseX - 10, tailBaseY);
+      this.ctx.lineTo(npcTargetX, npcTargetY);
+      this.ctx.lineTo(tailBaseX + 10, tailBaseY);
+      this.ctx.closePath();
+      this.ctx.fill();
+      // Only stroke if we are above the NPC essentially, otherwise it might look weird crossing the bubble
+      // But for simplicity, we stroke.
+      this.ctx.stroke();
+
+      // Re-fill the bubble body over the tail line where it connects to avoid the line showing inside the bubble?
+      // Actually, drawing the tail AFTER the bubble stroke means the tail stroke covers the bubble border.
+      // We might want to clear the border there.
+      // But standard implementation usually just strokes it.
+
+      // Let's redraw the bubble fill slightly over the tail connection if we want to hide the line.
+      // But simple triangle is fine.
+    }
+
 
     // Draw text
-    this.ctx.fillStyle = '#000000';
-    this.ctx.font = '12px Arial';
+    this.ctx.fillStyle = isThought ? '#555555' : '#000000';
+    this.ctx.font = isThought ? 'italic 12px Arial' : '12px Arial';
     this.ctx.textAlign = 'left';
     lines.forEach((line, index) => {
       this.ctx.fillText(line, bubbleX + padding, bubbleY + padding + (index + 1) * lineHeight);

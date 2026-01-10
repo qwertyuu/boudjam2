@@ -9,6 +9,37 @@
 </head>
 <body>
   <div id="game-app">
+     <!-- Setup Screen -->
+     <div id="setup-screen" style="display: none; position: fixed; inset: 0; background: #2C3E50; z-index: 100; align-items: center; justify-content: center; flex-direction: column; color: white;">
+        <div style="background: #34495E; padding: 2rem; border-radius: 12px; width: 400px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
+            <h2 style="margin-bottom: 20px; text-align: center;">Configuration de votre Avatar</h2>
+            <form id="setup-form" style="display: flex; flex-direction: column; gap: 15px;">
+                <div>
+                    <label for="npc-name" style="display: block; margin-bottom: 5px;">Nom du Personnage</label>
+                    <input type="text" id="npc-name" required style="width: 100%; padding: 8px; border-radius: 4px; border: none;" placeholder="ex: Sir Galahad">
+                </div>
+                
+                <div>
+                    <label for="npc-personality" style="display: block; margin-bottom: 5px;">Personnalité & Trait</label>
+                    <textarea id="npc-personality" required rows="4" style="width: 100%; padding: 8px; border-radius: 4px; border: none;" placeholder="Décrivez qui vous êtes, comment vous parlez..."></textarea>
+                </div>
+
+                <div>
+                    <label for="npc-mood" style="display: block; margin-bottom: 5px;">Humeur Initiale</label>
+                    <select id="npc-mood" style="width: 100%; padding: 8px; border-radius: 4px; border: none;">
+                        <option value="calm">Calme</option>
+                        <option value="joyeux">Joyeux</option>
+                        <option value="curieux">Curieux</option>
+                        <option value="méfiant">Méfiant</option>
+                        <option value="déterminé">Déterminé</option>
+                    </select>
+                </div>
+
+                <button type="submit" id="start-btn" style="background: #27AE60; color: white; border: none; padding: 12px; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 10px;">Rejoindre le monde</button>
+            </form>
+        </div>
+    </div>
+
     <!-- Loading Screen -->
     <div id="game-loading">
       <h1>Loading Fantasy RPG World...</h1>

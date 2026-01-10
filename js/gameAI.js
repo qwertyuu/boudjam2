@@ -91,6 +91,9 @@ export class GameAI {
   /**
    * Generate NPC-specific response
    */
+  /**
+   * Generator for regex-based responses
+   */
   async generateNPCResponse(npc, prompt, context = '', sharedContext = '') {
     if (!this.isInitialized) {
       throw new Error('GameAI not initialized');
@@ -103,39 +106,49 @@ export class GameAI {
     chatState.isGenerating = true;
 
     try {
-      // Build NPC-specific message history
-      // Ensure proper role alternation (user/assistant)
-      let conversationHistory = npc.conversationHistory.slice(-5);
-
-      // Ensure alternating roles - filter to maintain user->assistant->user pattern
-      const validHistory = [];
-      let expectedRole = 'user'; // First message after system should be user
-
-      for (const msg of conversationHistory) {
-        if (msg.role === expectedRole) {
-          validHistory.push(msg);
-          expectedRole = expectedRole === 'user' ? 'assistant' : 'user';
-        }
-      }
-
-      // Combine context: world context + shared conversation context
-      const fullContext = [context, sharedContext].filter(c => c && c.trim().length > 0).join('\n');
+      // 1. Construct System Prompt
+      // Using the specific "No JSON" instructions from specs
+      const systemPrompt = `Tu es ${npc.name}. ${npc.personality}
       
+RÈGLES DU MONDE :
+- Univers médiéval fantastique.
+- Magie et créatures existent.
+- Tu es autonome, tu as tes propres objectifs.
+
+FORMAT DE SORTIE OBLIGATOIRE :
+Réponds UNIQUEMENT en utilisant ces marqueurs :
+ACTION: [ce que tu fais]
+DIALOGUE: [ce que tu dis]
+PENSÉE: [ce que tu penses intérieurement]
+MOOD: [ton émotion: joyeux, triste, en colère, calme, excité, anxieux, confiant, effrayé]
+
+Tu peux utiliser tout ou partie des marqueurs, mais le format doit être respecté.
+Ne génère PAS de JSON.`;
+
+      // 2. Construct User Message (Single Context)
+      // Combining identity, mood, history, surroundings into one rich context
+      const userContent = `
+[NPC : ${npc.name}]
+[Mood actuel : ${npc.mood}]
+[Dernière pensée : ${npc.thoughts && npc.thoughts.length > 0 ? npc.thoughts[npc.thoughts.length - 1] : 'Aucune'}]
+
+[Situation]
+${context}
+
+[Ce que tu vois/entends]
+${sharedContext}
+
+[Historique récent]
+${npc.localHistory ? npc.localHistory.slice(-3).map(h => `- ${h}`).join('\n') : 'Rien de particulier.'}
+
+Que fais-tu maintenant ?`;
+
       const messages = [
-        {
-          role: 'system',
-          content: npc.personality,
-        },
-        ...validHistory,
-        {
-          role: 'user',
-          content: fullContext ? `${fullContext}\n${prompt}` : prompt,
-        },
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userContent }
       ];
 
-      // Debug: log message structure
-      console.log(`[${npc.name}] Message roles:`, messages.map(m => m.role).join(' -> '));
-      console.log(`[${npc.name}] Messages:`, messages.map(m => m.content).join('\n\n---\n'));
+      console.log(`[${npc.name}] Generating with prompt size:`, userContent.length);
 
       // Apply chat template
       const fullPrompt = this.processor.apply_chat_template(messages, {
@@ -148,7 +161,7 @@ export class GameAI {
         add_special_tokens: false,
       });
 
-      // Use streaming to properly decode tokens (same as chat.js)
+      // Use streaming
       const { TextStreamer } = await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1');
 
       let responseText = '';
@@ -158,132 +171,111 @@ export class GameAI {
         skip_special_tokens: true,
         callback_function: (token) => {
           responseText += token;
+          // Here we could implement real-time partial parsing if needed for UI
         },
       });
 
-      // Generate with streaming
+      // Generate
       await this.model.generate({
         ...inputs,
-        max_new_tokens: 1000, // Shorter for quick NPC responses
+        max_new_tokens: 300, // Reduced from 1000, usually enough for a turn
         do_sample: true,
-        temperature: 0.2,
+        temperature: 0.7, // Slightly higher for creativity
         repetition_penalty: 1.2,
         streamer,
       });
 
-      // Parse and clean JSON response
-      let parsedResponse = null;
-      let displayText = responseText;
-      let mood = 'neutral';
+      console.log(`[${npc.name}] Raw Output:\n${responseText}`);
 
-      try {
-        // Extract JSON from response
-        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          const jsonStr = jsonMatch[0];
-          
-          // Clean the JSON string
-          const cleanedJson = this.cleanJSON(jsonStr);
-          
-          // Parse the cleaned JSON
-          parsedResponse = JSON.parse(cleanedJson);
-          
-          // Validate required fields
-          if (parsedResponse.response && typeof parsedResponse.response === 'string') {
-            displayText = parsedResponse.response.trim();
-            mood = parsedResponse.mood || 'neutral';
-          } else {
-            console.warn('Invalid JSON structure - missing response field');
-            displayText = responseText;
-          }
+      // 3. Parse Response via Regex
+      const parsed = this.parseAIResponse(responseText);
+
+      // Update NPC state based on parsed content
+      if (parsed.mood) npc.mood = parsed.mood.toLowerCase();
+      if (parsed.thought) {
+        if (!npc.thoughts) npc.thoughts = [];
+        npc.thoughts.push(parsed.thought);
+        // Visualise thought if no dialogue (dialogue takes precedence for visual)
+        if (!parsed.dialogue) {
+          npc.setThought(parsed.thought, 4000);
         }
-      } catch (e) {
-        console.warn('JSON parse failed for NPC response:', e, 'Raw:', responseText);
-        // Fallback to raw text
-        displayText = responseText;
       }
 
-      console.log(`[${npc.name}] AI Response:`, displayText);
+      // Store action/dialogue in local history
+      const summary = parsed.dialogue ? `Dit: "${parsed.dialogue}"` : (parsed.action ? `Fait: ${parsed.action}` : 'Rien');
+      if (!npc.localHistory) npc.localHistory = [];
+      npc.localHistory.push(summary);
 
-      // Only update conversation history if we have valid response text
-      if (displayText && displayText.trim().length > 0) {
-        // Only add user message if the last message isn't already a user message
-        const lastMessage = npc.conversationHistory[npc.conversationHistory.length - 1];
-        if (!lastMessage || lastMessage.role !== 'user') {
-          npc.conversationHistory.push({ role: 'user', content: prompt });
-        }
+      // Limit history
+      if (npc.localHistory.length > 20) npc.localHistory = npc.localHistory.slice(-20);
+      if (npc.thoughts && npc.thoughts.length > 20) npc.thoughts = npc.thoughts.slice(-20);
 
-        // Add assistant response
-        npc.conversationHistory.push({ role: 'assistant', content: displayText });
-
-        // Limit conversation history to prevent unbounded growth
-        if (npc.conversationHistory.length > 20) {
-          npc.conversationHistory = npc.conversationHistory.slice(-20);
-        }
-
-        npc.setDialogue(displayText, 6000); // Show for 6 seconds
-        npc.mood = mood;
-      } else {
-        console.warn('Empty response from AI, not updating conversation history');
+      // Set Dialogue (Visual)
+      if (parsed.dialogue) {
+        npc.setDialogue(parsed.dialogue, 6000);
+      } else if (parsed.action && !parsed.thought) {
+        // Optional: visualize action as a thought/narrative if no speech/thought?
+        // or just rely on game log.
       }
 
+
+      // Return structured data for game implementation
       return {
-        text: displayText,
-        mood: mood,
-        raw: responseText,
+        text: parsed.dialogue || parsed.action || "...",
+        action: parsed.action,
+        dialogue: parsed.dialogue,
+        thought: parsed.thought,
+        mood: parsed.mood,
+        raw: responseText
       };
+
     } finally {
       chatState.isGenerating = false;
     }
   }
 
   /**
-   * Clean JSON string to ensure valid formatting
-   * Removes extra characters, fixes quotes, and validates structure
+   * Parser using Regex to extract fields from free text
    */
-  cleanJSON(jsonStr) {
-    // Remove leading/trailing whitespace
-    let cleaned = jsonStr.trim();
+  parseAIResponse(text) {
+    const result = {
+      action: null,
+      dialogue: null,
+      thought: null,
+      mood: null
+    };
 
-    // Remove markdown code blocks if present
-    cleaned = cleaned.replace(/^```json\s*/i, '').replace(/\s*```$/, '');
-    cleaned = cleaned.replace(/^```\s*/i, '').replace(/\s*```$/, '');
+    // Helper to extract content by tag
+    // Looks for TAG: content until the next TAG: or end of string
+    const extract = (tag) => {
+      // Regex explanation:
+      // ${tag}: matches the tag literal
+      // \s* matches optional whitespace
+      // ([\s\S]+?) matches content non-greedily (including newlines)
+      // (?=...|$) lookahead for next tag or end of string
+      // The list of known tags to stop at: ACTION:|DIALOGUE:|PENSÉE:|MOOD:
+      const regex = new RegExp(`${tag}:\\s*([\\s\\S]+?)(?=(?:ACTION:|DIALOGUE:|PENSÉE:|MOOD:|$))`, 'i');
+      const match = text.match(regex);
+      return match ? match[1].trim() : null;
+    };
 
-    // First, let's identify the structure: find response and mood values
-    // This is more robust than trying to fix quotes
-    
-    // Extract the response field content
-    const responseMatch = cleaned.match(/"response"\s*:\s*"((?:[^"\\]|\\.)*?)"\s*,/);
-    const moodMatch = cleaned.match(/"mood"\s*:\s*"([^"]*?)"\s*[}\]]/);
-    
-    if (responseMatch && moodMatch) {
-      const response = responseMatch[1];
-      const mood = moodMatch[1];
-      
-      // Build clean JSON with properly escaped strings
-      return JSON.stringify({
-        response: response,
-        mood: mood
-      });
+    result.action = extract('ACTION');
+    result.dialogue = extract('DIALOGUE');
+    result.thought = extract('PENSÉE');
+    result.mood = extract('MOOD');
+
+    // FALLBACK 1: If no tags found but text exists, treat as Action or Dialogue
+    if (!result.action && !result.dialogue && !result.thought && !result.mood && text.trim().length > 0) {
+      if (text.includes('"')) {
+        // Assume speech if quotes present
+        result.dialogue = text.trim();
+      } else {
+        // Assume action
+        result.action = text.trim();
+      }
     }
 
-    // Fallback: try to fix common quote issues and parse
-    // Replace smart quotes with regular quotes
-    cleaned = cleaned.replace(/[\u201C\u201D]/g, '"'); // "" -> ""
-    cleaned = cleaned.replace(/[\u2018\u2019]/g, "'"); // '' -> ''
-
-    // Remove trailing commas before closing braces/brackets
-    cleaned = cleaned.replace(/,(\s*[}\]])/g, '$1');
-
-    // Ensure the JSON starts with { and ends with }
-    const startIdx = cleaned.indexOf('{');
-    const lastIdx = cleaned.lastIndexOf('}');
-
-    if (startIdx !== -1 && lastIdx !== -1 && lastIdx > startIdx) {
-      cleaned = cleaned.substring(startIdx, lastIdx + 1);
-    }
-
-    return cleaned;
+    return result;
   }
 
   /**
