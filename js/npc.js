@@ -39,9 +39,9 @@ export class NPC {
     this.currentGoal = null; // NPC's current objective
     this.relationships = {}; // { npcName: { attitude: 'hostile'|'amical'|'neutre', history: [] } }
 
-    // World bounds (set by game)
-    this.worldWidth = 800;
-    this.worldHeight = 600;
+    // World bounds - Fixed 1920x1080 world
+    this.worldWidth = 1920;
+    this.worldHeight = 1080;
     this.margin = 40;
   }
 
@@ -62,8 +62,8 @@ export class NPC {
       }
 
       // Keep within bounds
-      this.x = Math.max(this.margin, Math.min(this.worldWidth - this.margin, this.x));
-      this.y = Math.max(this.margin, Math.min(this.worldHeight - this.margin, this.y));
+      this.x = Math.max(this.margin, Math.min(this.worldWidth - this.margin * 2, this.x));
+      this.y = Math.max(this.margin, Math.min(this.worldHeight - this.margin * 2, this.y));
       return;
     }
 
@@ -96,8 +96,8 @@ export class NPC {
     }
 
     // Keep within bounds
-    this.x = Math.max(this.margin, Math.min(this.worldWidth - 2 * this.margin, this.x));
-    this.y = Math.max(this.margin, Math.min(this.worldHeight - 2 * this.margin, this.y));
+    this.x = Math.max(this.margin, Math.min(this.worldWidth - this.margin * 2, this.x));
+    this.y = Math.max(this.margin, Math.min(this.worldHeight - this.margin * 2, this.y));
   }
 
   /**
@@ -128,9 +128,11 @@ export class NPC {
   }
 
   /**
-   * Pick a random target position
+   * Pick a random target position within world bounds
    */
   pickRandomTarget() {
+    // Pick a position within margin boundaries
+    // Range: [margin, worldWidth - margin] and [margin, worldHeight - margin]
     this.targetX = this.margin + Math.random() * (this.worldWidth - 2 * this.margin);
     this.targetY = this.margin + Math.random() * (this.worldHeight - 2 * this.margin);
   }
@@ -200,13 +202,5 @@ export class NPC {
       .join('\n');
 
     return `# Relations\n${relations}`;
-  }
-
-  /**
-   * Set world bounds (called by game)
-   */
-  setWorldBounds(width, height) {
-    this.worldWidth = width;
-    this.worldHeight = height;
   }
 }

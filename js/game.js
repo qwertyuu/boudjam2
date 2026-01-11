@@ -20,6 +20,37 @@ class Game {
     this.targetFPS = 20; // Slowed down from 60 to 20 FPS
     this.frameInterval = 1000 / this.targetFPS;
 
+    // World constants - 1920x1080 game world
+    this.WORLD_WIDTH = 1920;
+    this.WORLD_HEIGHT = 1080;
+
+    // Viewport size (what the camera shows)
+    this.VIEWPORT_WIDTH = 1280;
+    this.VIEWPORT_HEIGHT = 720;
+
+    // Camera state
+    this.camera = {
+      x: 0,           // Camera position in world space
+      y: 0,
+      speed: 200,     // Pixels per second
+      minX: 0,
+      minY: 0,
+      maxX: 0,        // Calculated based on world vs viewport
+      maxY: 0
+    };
+
+    // Keyboard state for camera controls
+    this.keys = {
+      w: false,
+      a: false,
+      s: false,
+      d: false,
+      ArrowUp: false,
+      ArrowLeft: false,
+      ArrowDown: false,
+      ArrowRight: false
+    };
+
     // Game state
     this.npcs = [];
     this.playerNPC = null;
@@ -196,9 +227,6 @@ class Game {
     // Store in array for compatibility with rendering code
     this.npcs = [this.playerNPC];
 
-    // Set world bounds for the character
-    this.playerNPC.setWorldBounds(this.canvas.width, this.canvas.height);
-
     // Create event generator
     this.eventGenerator = new EventGenerator(this);
 
@@ -212,41 +240,47 @@ class Game {
 
   /**
    * Resize canvas to match display size and handle high DPI screens
+   * Now uses fixed 1280x720 viewport showing a 1920x1080 world with aspect-ratio-preserving scaling
    */
   resizeCanvas() {
     const container = this.elements.container || document.getElementById('game-container');
     const dpr = window.devicePixelRatio || 1;
 
-    // Get the display size (CSS size)
-    let displayWidth = container.clientWidth;
-    let displayHeight = container.clientHeight;
+    // Get container size
+    const containerWidth = container.clientWidth || window.innerWidth;
+    const containerHeight = container.clientHeight || window.innerHeight;
 
-    // Fallback to window size if container is not visible yet
-    if (displayWidth === 0 || displayHeight === 0) {
-      displayWidth = window.innerWidth;
-      displayHeight = window.innerHeight;
-    }
+    // Calculate scale to fit 1280x720 viewport into container while preserving aspect ratio
+    const scaleX = containerWidth / this.VIEWPORT_WIDTH;
+    const scaleY = containerHeight / this.VIEWPORT_HEIGHT;
+    const scale = Math.min(scaleX, scaleY); // Fit inside, preserving aspect ratio
 
-    // Set the canvas internal resolution
-    this.canvas.width = displayWidth * dpr;
-    this.canvas.height = displayHeight * dpr;
+    // Calculate display size (may be smaller than container due to letterboxing)
+    const displayWidth = this.VIEWPORT_WIDTH * scale;
+    const displayHeight = this.VIEWPORT_HEIGHT * scale;
 
-    // Get a fresh context reference and scale it
+    // Set canvas internal resolution (viewport size * DPR for crisp rendering)
+    this.canvas.width = this.VIEWPORT_WIDTH * dpr;
+    this.canvas.height = this.VIEWPORT_HEIGHT * dpr;
+
+    // Get a fresh context reference and scale it for DPR
     this.ctx = this.canvas.getContext('2d');
     this.ctx.scale(dpr, dpr);
 
-    // Set the canvas CSS size to match the container
+    // Set CSS size to scaled display size
     this.canvas.style.width = displayWidth + 'px';
     this.canvas.style.height = displayHeight + 'px';
 
-    console.log(`Canvas resized: ${displayWidth}x${displayHeight} (DPR: ${dpr})`);
+    // Store scale for coordinate conversions (if needed later)
+    this.displayScale = scale;
 
-    // Update NPC world bounds if they exist
-    if (this.npcs && this.npcs.length > 0) {
-      this.npcs.forEach((npc) => {
-        npc.setWorldBounds(displayWidth, displayHeight);
-      });
-    }
+    // Update camera bounds (camera can move within world, but can't go beyond edges)
+    // Camera shows a viewport of VIEWPORT_WIDTH x VIEWPORT_HEIGHT
+    // World is WORLD_WIDTH x WORLD_HEIGHT
+    this.camera.maxX = Math.max(0, this.WORLD_WIDTH - this.VIEWPORT_WIDTH);
+    this.camera.maxY = Math.max(0, this.WORLD_HEIGHT - this.VIEWPORT_HEIGHT);
+
+    console.log(`Canvas: ${this.WORLD_WIDTH}x${this.WORLD_HEIGHT} world, ${this.VIEWPORT_WIDTH}x${this.VIEWPORT_HEIGHT} viewport, ${Math.round(displayWidth)}x${Math.round(displayHeight)} display (scale: ${scale.toFixed(2)}, DPR: ${dpr})`);
   }
 
   /**
@@ -272,6 +306,30 @@ class Game {
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && !this.elements.editModal.classList.contains('hidden')) {
         this.closeEditModal();
+      }
+    });
+
+    // Camera controls (WASD and Arrow keys)
+    window.addEventListener('keydown', (e) => {
+      // Don't capture keys when typing in input/textarea fields
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+        return;
+      }
+
+      if (e.key in this.keys) {
+        this.keys[e.key] = true;
+        e.preventDefault(); // Prevent page scrolling
+      }
+    });
+
+    window.addEventListener('keyup', (e) => {
+      // Don't capture keys when typing in input/textarea fields
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+        return;
+      }
+
+      if (e.key in this.keys) {
+        this.keys[e.key] = false;
       }
     });
 
@@ -443,19 +501,42 @@ class Game {
    * Update game state
    */
   update(deltaTime) {
+    // Always update camera position (even when paused or model not loaded)
+    if (!this.isPaused) {
+      this.updateCamera(deltaTime / 1000); // Convert to seconds
+    }
+
+    // Only update game logic if model is loaded and not paused
     if (!this.isModelLoaded || this.isPaused) return;
 
-    // 1. Update NPC positions
+    // 2. Update NPC positions
     this.updateNPCPositions(deltaTime);
 
-    // 2. Check for event triggers
+    // 3. Check for event triggers
     this.checkEventTriggers();
 
-    // 3. Process event queue
+    // 4. Process event queue
     this.processEventQueue();
 
-    // 4. Update dialogue timers
+    // 5. Update dialogue timers
     this.updateDialogue(deltaTime);
+  }
+
+  /**
+   * Update camera position based on keyboard input
+   */
+  updateCamera(deltaTime) {
+    const moveSpeed = this.camera.speed * deltaTime;
+
+    // WASD or Arrow keys
+    if (this.keys.w || this.keys.ArrowUp) this.camera.y -= moveSpeed;
+    if (this.keys.s || this.keys.ArrowDown) this.camera.y += moveSpeed;
+    if (this.keys.a || this.keys.ArrowLeft) this.camera.x -= moveSpeed;
+    if (this.keys.d || this.keys.ArrowRight) this.camera.x += moveSpeed;
+
+    // Clamp camera to world bounds
+    this.camera.x = Math.max(this.camera.minX, Math.min(this.camera.maxX, this.camera.x));
+    this.camera.y = Math.max(this.camera.minY, Math.min(this.camera.maxY, this.camera.y));
   }
 
   /**
@@ -1026,21 +1107,23 @@ class Game {
    * Render game
    */
   render() {
-    // Get logical dimensions (CSS size, not internal canvas resolution)
-    const width = this.canvas.clientWidth;
-    const height = this.canvas.clientHeight;
-
-    // Clear canvas
+    // Clear viewport with background color (camera-independent)
     this.ctx.fillStyle = '#2C3E50';
-    this.ctx.fillRect(0, 0, width, height);
+    this.ctx.fillRect(0, 0, this.VIEWPORT_WIDTH, this.VIEWPORT_HEIGHT);
 
-    // Draw grid (optional visual reference)
+    // Save context state
+    this.ctx.save();
+
+    // Apply camera transformation (translate by negative camera position)
+    this.ctx.translate(-this.camera.x, -this.camera.y);
+
+    // Draw world content (all coordinates now in world space)
     this.drawGrid();
 
     // Draw NPCs
     this.npcs.forEach((npc) => this.drawNPC(npc));
 
-    // Draw speech/thought bubble
+    // Draw speech/thought bubbles
     this.npcs.forEach((npc) => {
       if (npc.currentDialogue) {
         this.drawSpeechBubble(npc, false);
@@ -1055,31 +1138,31 @@ class Game {
         this.drawAction(npc);
       }
     });
+
+    // Restore context (removes camera transformation)
+    this.ctx.restore();
   }
 
   /**
-   * Draw grid
+   * Draw grid across the entire world
    */
   drawGrid() {
-    const width = this.canvas.clientWidth;
-    const height = this.canvas.clientHeight;
-
     this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
     this.ctx.lineWidth = 1;
 
-    // Vertical lines
-    for (let x = 0; x < width; x += 50) {
+    // Vertical lines across entire world
+    for (let x = 0; x < this.WORLD_WIDTH; x += 50) {
       this.ctx.beginPath();
       this.ctx.moveTo(x, 0);
-      this.ctx.lineTo(x, height);
+      this.ctx.lineTo(x, this.WORLD_HEIGHT);
       this.ctx.stroke();
     }
 
-    // Horizontal lines
-    for (let y = 0; y < height; y += 50) {
+    // Horizontal lines across entire world
+    for (let y = 0; y < this.WORLD_HEIGHT; y += 50) {
       this.ctx.beginPath();
       this.ctx.moveTo(0, y);
-      this.ctx.lineTo(width, y);
+      this.ctx.lineTo(this.WORLD_WIDTH, y);
       this.ctx.stroke();
     }
   }
