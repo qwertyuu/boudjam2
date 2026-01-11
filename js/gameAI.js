@@ -150,14 +150,10 @@ Ne génère PAS de JSON.`;
 [Mood actuel : ${npc.mood}]
 [Dernière pensée : ${npc.thoughts && npc.thoughts.length > 0 ? npc.thoughts[npc.thoughts.length - 1] : 'Aucune'}]
 
-[Situation]
+[Situation actuelle]
 ${context}
 
-[Ce que tu vois/entends]
 ${sharedContext}
-
-[Historique récent]
-${npc.localHistory ? npc.localHistory.slice(-3).map(h => `- ${h}`).join('\n') : 'Rien de particulier.'}
 
 Que fais-tu maintenant ?`;
 
@@ -165,7 +161,7 @@ Que fais-tu maintenant ?`;
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userContent }
       ];
-
+      console.log(`[${npc.name}] Prompt:\n${JSON.stringify(messages, null, 2)}`);
       console.log(`[${npc.name}] Generating with prompt size:`, userContent.length);
 
       // Apply chat template

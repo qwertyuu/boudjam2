@@ -107,6 +107,14 @@ export class NetworkManager {
             case 'PLAYER_EVENT':
                 this.handleRemoteEvent(data.id, data.event);
                 break;
+
+            case 'PLAYER_INFO_UPDATE':
+                this.updateRemotePlayerInfo(data.id, {
+                    name: data.name,
+                    personality: data.personality,
+                    mood: data.mood
+                });
+                break;
         }
     }
 
@@ -167,17 +175,41 @@ export class NetworkManager {
     }
 
     handleRemoteEvent(id, event) {
+        console.log('🔍 handleRemoteEvent called:', id, event);
         const npc = this.remotePlayers.get(id);
         if (!npc) return;
 
         if (event.type === 'DIALOGUE' && event.text) {
             npc.setDialogue(event.text, event.duration || 6000);
             this.game.addEventLogEntry('Chat', `${npc.name}: ${event.text}`, 'chat');
+            // ✨ NEW: Add to shared timeline so local NPCs can see remote player's dialogue
+            this.game.addToSharedHistory(npc.name, event.text, 'dialogue');
+            console.log(`🌐 [Remote Event] Added ${npc.name}'s dialogue to timeline`);
         } else if (event.type === 'ACTION' && event.text) {
             npc.setAction(event.text, event.duration || 6000);
             this.game.addEventLogEntry('Action', `${npc.name} ${event.text}`, 'action');
+            // ✨ NEW: Add to shared timeline so local NPCs can see remote player's action
+            this.game.addToSharedHistory(npc.name, event.text, 'action');
+            console.log(`🌐 [Remote Event] Added ${npc.name}'s action to timeline`);
         } else if (event.type === 'WAITING') {
             // Optional: show "..." bubble
+        }
+    }
+
+    /**
+     * Update remote player info (name, personality, mood)
+     */
+    updateRemotePlayerInfo(id, info) {
+        const npc = this.remotePlayers.get(id);
+        if (npc) {
+            const oldName = npc.name;
+            npc.name = info.name;
+            npc.personality = `Tu es ${info.name}. ${info.personality}`;
+            npc.mood = info.mood;
+
+            this.game.addEventLogEntry('Network',
+                `${oldName} changed name to ${info.name}`,
+                'info');
         }
     }
 }

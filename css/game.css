@@ -375,3 +375,82 @@ canvas {
 .tag-mood {
   color: var(--accent);
 }
+
+/* =========================================
+   Character Edit Modal
+   ========================================= */
+#edit-character-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#edit-character-modal.hidden {
+  display: none !important;
+}
+
+.edit-modal-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.edit-modal-content {
+  position: relative;
+  z-index: 201;
+  width: 100%;
+  max-width: 450px;
+  padding: 3rem;
+  margin: 0 20px;
+  max-height: 90vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.edit-modal-content h2 {
+  font-family: var(--font-display);
+  font-size: 1.8rem;
+  margin: 0;
+  text-align: center;
+  background: linear-gradient(to right, var(--primary), var(--accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.edit-modal-content .subtitle {
+  text-align: center;
+  color: var(--text-muted);
+  margin-top: -1rem;
+  font-size: 0.85rem;
+}
+
+.edit-modal-content .button-group {
+  display: flex;
+  gap: 12px;
+  margin-top: 0.5rem;
+}
+
+.edit-modal-content .button-group button {
+  flex: 1;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .edit-modal-content {
+    padding: 2rem 1.5rem;
+    max-width: 100%;
+    margin: 0 10px;
+  }
+
+  .edit-modal-content h2 {
+    font-size: 1.5rem;
+  }
+}

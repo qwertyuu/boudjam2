@@ -28,6 +28,7 @@ class Game {
     this.isPaused = false;
     this.isModelLoaded = false;
     this.isInGame = false;
+    this.wasPausedBeforeEdit = false;
 
     // Systems
     this.gameAI = new GameAI();
@@ -46,14 +47,21 @@ class Game {
       pauseBtn: null,
       resetBtn: null,
       eventLog: null,
+      editCharacterBtn: null,
+      editModal: null,
+      editForm: null,
+      editNameInput: null,
+      editPersonalityInput: null,
+      editMoodInput: null,
+      cancelEditBtn: null,
     };
 
     // Event log
     this.eventLogEntries = [];
     this.maxLogEntries = 20;
 
-    // Shared conversation history - tracks all interactions in the game world
-    this.conversationHistory = [];
+    // Shared timeline - unified history of all NPC dialogues AND actions
+    this.sharedTimeline = [];
     this.maxSharedHistoryLength = 50;
   }
 
@@ -69,6 +77,13 @@ class Game {
     this.elements.pauseBtn = document.getElementById('pause-btn');
     this.elements.resetBtn = document.getElementById('reset-btn');
     this.elements.eventLog = document.getElementById('event-log-content');
+    this.elements.editCharacterBtn = document.getElementById('edit-character-btn');
+    this.elements.editModal = document.getElementById('edit-character-modal');
+    this.elements.editForm = document.getElementById('edit-character-form');
+    this.elements.editNameInput = document.getElementById('edit-name');
+    this.elements.editPersonalityInput = document.getElementById('edit-personality');
+    this.elements.editMoodInput = document.getElementById('edit-mood');
+    this.elements.cancelEditBtn = document.getElementById('cancel-edit-btn');
 
     this.canvas = document.getElementById('game-canvas');
     this.ctx = this.canvas.getContext('2d');
@@ -241,6 +256,25 @@ class Game {
     this.elements.pauseBtn.addEventListener('click', () => this.togglePause());
     this.elements.resetBtn.addEventListener('click', () => this.reset());
 
+    // Character edit handlers
+    this.elements.editCharacterBtn.addEventListener('click', () => this.openEditModal());
+    this.elements.editForm.addEventListener('submit', (e) => this.handleEditSubmit(e));
+    this.elements.cancelEditBtn.addEventListener('click', () => this.closeEditModal());
+
+    // Close modal on overlay click
+    this.elements.editModal.addEventListener('click', (e) => {
+      if (e.target === this.elements.editModal || e.target.classList.contains('edit-modal-overlay')) {
+        this.closeEditModal();
+      }
+    });
+
+    // ESC key to close modal
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !this.elements.editModal.classList.contains('hidden')) {
+        this.closeEditModal();
+      }
+    });
+
     // Handle window resize
     window.addEventListener('resize', () => {
       this.resizeCanvas();
@@ -283,6 +317,111 @@ class Game {
 
     // Reset event generator
     this.eventGenerator.lastWorldEventTime = 0;
+  }
+
+  /**
+   * Open character edit modal
+   */
+  openEditModal() {
+    if (!this.playerNPC || !this.initialPlayerData) {
+      console.warn('No player character to edit');
+      return;
+    }
+
+    // Populate form with current values
+    this.elements.editNameInput.value = this.playerNPC.name;
+
+    // Extract personality from "Tu es {name}. {personality}" format
+    const fullPersonality = this.playerNPC.personality;
+    const prefix = `Tu es ${this.playerNPC.name}. `;
+    const personality = fullPersonality.startsWith(prefix)
+      ? fullPersonality.substring(prefix.length)
+      : fullPersonality;
+
+    this.elements.editPersonalityInput.value = personality;
+    this.elements.editMoodInput.value = this.playerNPC.mood;
+
+    // Show modal
+    this.elements.editModal.classList.remove('hidden');
+
+    // Auto-pause game while editing
+    if (!this.isPaused) {
+      this.wasPausedBeforeEdit = false;
+      this.togglePause();
+    } else {
+      this.wasPausedBeforeEdit = true;
+    }
+
+    // Focus first input
+    this.elements.editNameInput.focus();
+  }
+
+  /**
+   * Close character edit modal
+   */
+  closeEditModal() {
+    this.elements.editModal.classList.add('hidden');
+
+    // Resume game if it was auto-paused
+    if (!this.wasPausedBeforeEdit && this.isPaused) {
+      this.togglePause();
+    }
+  }
+
+  /**
+   * Handle edit form submission
+   */
+  handleEditSubmit(e) {
+    e.preventDefault();
+
+    const name = this.elements.editNameInput.value.trim();
+    const personality = this.elements.editPersonalityInput.value.trim();
+    const mood = this.elements.editMoodInput.value;
+
+    if (!name || !personality) {
+      alert('Veuillez remplir tous les champs !');
+      return;
+    }
+
+    // Apply changes to player character
+    this.updatePlayerCharacter(name, personality, mood);
+
+    // Close modal
+    this.closeEditModal();
+
+    // Log event
+    this.addEventLogEntry('Personnage Modifié', `${name} a été mis à jour`, 'character-update');
+  }
+
+  /**
+   * Update player character data
+   */
+  updatePlayerCharacter(newName, newPersonality, newMood) {
+    const oldName = this.playerNPC.name;
+
+    // Update NPC object
+    this.playerNPC.name = newName;
+    this.playerNPC.personality = `Tu es ${newName}. ${newPersonality}`;
+    this.playerNPC.mood = newMood;
+
+    // Update initialPlayerData for reset functionality
+    this.initialPlayerData.name = newName;
+    this.initialPlayerData.personality = newPersonality;
+    this.initialPlayerData.mood = newMood;
+
+    // Update localStorage
+    localStorage.setItem('my_npc_data', JSON.stringify(this.initialPlayerData));
+
+    // Sync with network (send updated player state)
+    if (this.networkManager && this.networkManager.isConnected) {
+      this.networkManager.send('PLAYER_INFO_UPDATE', {
+        name: newName,
+        personality: newPersonality,
+        mood: newMood
+      });
+    }
+
+    console.log(`Character updated: ${oldName} → ${newName} (mood: ${newMood})`);
   }
 
   /**
@@ -458,7 +597,7 @@ class Game {
 
     // NPC1 initiates conversation
     try {
-      const sharedContext = this.getSharedConversationContext(npc1) + this.getRecentEventContext(2);
+      const sharedContext = this.getUnifiedTimeline(npc1, 10) + this.getRecentEventContext(2);
       await this.generateWithStreaming(
         npc1,
         `Tu rencontres ${npc2.name}. Salue-le et commente ta rencontre avec lui ici.`,
@@ -467,15 +606,25 @@ class Game {
       );
 
       // Add to shared history
-      this.addToSharedHistory(npc1.name, npc1.currentDialogue);
+      if (npc1.currentDialogue) {
+        this.addToSharedHistory(npc1.name, npc1.currentDialogue, 'dialogue');
+      }
+      if (npc1.currentAction) {
+        this.addToSharedHistory(npc1.name, npc1.currentAction, 'action');
+      }
 
-      // Queue NPC2's response
-      this.eventQueue.push({
-        type: EVENT_TYPES.RESPONSE,
-        participants: [npc2, npc1],
-        context: `Réponds à ${npc1.name} qui a dit: "${npc1.currentDialogue}"`,
-        timestamp: Date.now(),
-      });
+      // Queue NPC2's response (only if npc1 said or did something)
+      if (npc1.currentDialogue || npc1.currentAction) {
+        const whatHappened = npc1.currentDialogue
+          ? `a dit: "${npc1.currentDialogue}"`
+          : `a fait: ${npc1.currentAction}`;
+        this.eventQueue.push({
+          type: EVENT_TYPES.RESPONSE,
+          participants: [npc2, npc1],
+          context: `Réponds à ${npc1.name} qui ${whatHappened}`,
+          timestamp: Date.now(),
+        });
+      }
 
       // Update interaction times
       npc1.lastInteractionTime = Date.now();
@@ -483,10 +632,18 @@ class Game {
 
       // Broadcast to other players
       if (this.networkManager) {
-        this.networkManager.sendEvent('DIALOGUE', {
-          text: npc1.currentDialogue,
-          duration: 6000
-        });
+        if (npc1.currentDialogue) {
+          this.networkManager.sendEvent('DIALOGUE', {
+            text: npc1.currentDialogue,
+            duration: 6000
+          });
+        }
+        if (npc1.currentAction) {
+          this.networkManager.sendEvent('ACTION', {
+            text: npc1.currentAction,
+            duration: 6000
+          });
+        }
       }
 
     } catch (error) {
@@ -513,7 +670,7 @@ class Game {
     this.addEventLogEntry('Découverte', `${npc.name} découvre ${event.discovery}`, 'discovery');
 
     try {
-      const sharedContext = this.getSharedConversationContext(npc) + this.getRecentEventContext(2);
+      const sharedContext = this.getUnifiedTimeline(npc, 10) + this.getRecentEventContext(2);
       await this.generateWithStreaming(
         npc,
         `Tu découvres ${event.discovery}. Quelle est ta réaction?`,
@@ -523,15 +680,26 @@ class Game {
 
       // Add to shared history
       if (npc.currentDialogue) {
-        this.addToSharedHistory(npc.name, npc.currentDialogue);
+        this.addToSharedHistory(npc.name, npc.currentDialogue, 'dialogue');
+      }
+      if (npc.currentAction) {
+        this.addToSharedHistory(npc.name, npc.currentAction, 'action');
       }
 
       // Broadcast to other players
       if (this.networkManager) {
-        this.networkManager.sendEvent('ACTION', {
-          text: `découvre ${event.discovery}: ${npc.currentDialogue}`,
-          duration: 6000
-        });
+        if (npc.currentDialogue) {
+          this.networkManager.sendEvent('DIALOGUE', {
+            text: npc.currentDialogue,
+            duration: 6000
+          });
+        }
+        if (npc.currentAction) {
+          this.networkManager.sendEvent('ACTION', {
+            text: npc.currentAction,
+            duration: 6000
+          });
+        }
       }
 
     } catch (error) {
@@ -554,7 +722,7 @@ class Game {
     }
 
     try {
-      const sharedContext = this.getSharedConversationContext(npc) + this.getRecentEventContext(2);
+      const sharedContext = this.getUnifiedTimeline(npc, 10) + this.getRecentEventContext(2);
       await this.generateWithStreaming(
         npc,
         `${event.context}. Qu'observes-tu ou que penses-tu de cela?`,
@@ -564,15 +732,26 @@ class Game {
 
       // Add to shared history
       if (npc.currentDialogue) {
-        this.addToSharedHistory(npc.name, npc.currentDialogue);
+        this.addToSharedHistory(npc.name, npc.currentDialogue, 'dialogue');
+      }
+      if (npc.currentAction) {
+        this.addToSharedHistory(npc.name, npc.currentAction, 'action');
       }
 
       // Broadcast to other players
       if (this.networkManager) {
-        this.networkManager.sendEvent('ACTION', {
-          text: npc.currentDialogue,
-          duration: 6000
-        });
+        if (npc.currentDialogue) {
+          this.networkManager.sendEvent('DIALOGUE', {
+            text: npc.currentDialogue,
+            duration: 6000
+          });
+        }
+        if (npc.currentAction) {
+          this.networkManager.sendEvent('ACTION', {
+            text: npc.currentAction,
+            duration: 6000
+          });
+        }
       }
 
     } catch (error) {
@@ -599,7 +778,7 @@ class Game {
     this.addEventLogEntry('Observation', event.context, 'observation');
 
     try {
-      const sharedContext = this.getSharedConversationContext(npc) + this.getRecentEventContext(2);
+      const sharedContext = this.getUnifiedTimeline(npc, 10) + this.getRecentEventContext(2);
       await this.generateWithStreaming(
         npc,
         `Tu t'arrêtes pour observer tes alentours. Que remarques-tu ou que penses-tu?`,
@@ -609,15 +788,26 @@ class Game {
 
       // Add to shared history
       if (npc.currentDialogue) {
-        this.addToSharedHistory(npc.name, npc.currentDialogue);
+        this.addToSharedHistory(npc.name, npc.currentDialogue, 'dialogue');
+      }
+      if (npc.currentAction) {
+        this.addToSharedHistory(npc.name, npc.currentAction, 'action');
       }
 
       // Broadcast to other players
       if (this.networkManager) {
-        this.networkManager.sendEvent('ACTION', {
-          text: npc.currentDialogue,
-          duration: 6000
-        });
+        if (npc.currentDialogue) {
+          this.networkManager.sendEvent('DIALOGUE', {
+            text: npc.currentDialogue,
+            duration: 6000
+          });
+        }
+        if (npc.currentAction) {
+          this.networkManager.sendEvent('ACTION', {
+            text: npc.currentAction,
+            duration: 6000
+          });
+        }
       }
 
     } catch (error) {
@@ -642,7 +832,7 @@ class Game {
     }
 
     try {
-      const sharedContext = this.getSharedConversationContext(npc) + this.getRecentEventContext(2);
+      const sharedContext = this.getUnifiedTimeline(npc, 10) + this.getRecentEventContext(2);
       await this.generateWithStreaming(
         npc,
         event.context,
@@ -652,15 +842,26 @@ class Game {
 
       // Add to shared history
       if (npc.currentDialogue) {
-        this.addToSharedHistory(npc.name, npc.currentDialogue);
+        this.addToSharedHistory(npc.name, npc.currentDialogue, 'dialogue');
+      }
+      if (npc.currentAction) {
+        this.addToSharedHistory(npc.name, npc.currentAction, 'action');
       }
 
       // Broadcast to other players
       if (this.networkManager) {
-        this.networkManager.sendEvent('DIALOGUE', {
-          text: npc.currentDialogue,
-          duration: 6000
-        });
+        if (npc.currentDialogue) {
+          this.networkManager.sendEvent('DIALOGUE', {
+            text: npc.currentDialogue,
+            duration: 6000
+          });
+        }
+        if (npc.currentAction) {
+          this.networkManager.sendEvent('ACTION', {
+            text: npc.currentAction,
+            duration: 6000
+          });
+        }
       }
 
     } catch (error) {
@@ -669,39 +870,98 @@ class Game {
   }
 
   /**
-   * Add to shared conversation history
+   * Add to shared timeline (dialogues and actions)
    * Called when an NPC generates a response to track all interactions
+   * @param {string} npcName - Name of the NPC
+   * @param {string} content - The dialogue or action text
+   * @param {string} type - Type of event: 'dialogue' or 'action' (default: 'dialogue')
    */
-  addToSharedHistory(npcName, message) {
-    this.conversationHistory.push({
+  addToSharedHistory(npcName, content, type = 'dialogue') {
+    this.sharedTimeline.push({
       npc: npcName,
-      message: message,
+      content: content,
+      type: type,
       timestamp: Date.now(),
     });
 
+    // Debug log
+    const preview = content.length > 60 ? content.substring(0, 60) + '...' : content;
+    console.log(`✅ [Timeline] Added: ${npcName} (${type}): "${preview}"`);
+    console.log(`   Total in timeline: ${this.sharedTimeline.length}`);
+    console.log(`   NPCs so far: ${[...new Set(this.sharedTimeline.map(e => e.npc))].join(', ')}`);
+
     // Keep history size manageable
-    if (this.conversationHistory.length > this.maxSharedHistoryLength) {
-      this.conversationHistory = this.conversationHistory.slice(-this.maxSharedHistoryLength);
+    if (this.sharedTimeline.length > this.maxSharedHistoryLength) {
+      this.sharedTimeline = this.sharedTimeline.slice(-this.maxSharedHistoryLength);
     }
   }
 
   /**
-   * Get context about recent conversations for an NPC
-   * Returns formatted string of recent interactions other NPCs have had
+   * Get unified timeline of recent events (dialogues + actions)
+   * Returns formatted string with what NPCs said and did
+   * Optimized for prompt size with character limit
+   * @param {NPC} excludeNpc - Optionally exclude this NPC's own events
+   * @param {number} limit - Max number of events to include (default 10)
+   * @param {number} maxChars - Max character limit for the timeline (default 600)
    */
-  getSharedConversationContext(excludeNpc = null) {
-    if (this.conversationHistory.length === 0) {
+  getUnifiedTimeline(excludeNpc = null, limit = 10, maxChars = 600) {
+    const viewerName = excludeNpc ? excludeNpc.name : '?';
+    console.log(`\n📍 [getUnifiedTimeline] ${viewerName} looking at shared events...`);
+    console.log(`   Total timeline: ${this.sharedTimeline.length} events`);
+
+    if (this.sharedTimeline.length === 0) {
+      console.log(`   → Empty (no events yet)`);
       return '';
     }
 
-    // Get last 5 conversations, excluding the NPC if specified
-    const recentConversations = this.conversationHistory
-      .slice(-5)
-      .filter(entry => !excludeNpc || entry.npc !== excludeNpc.name)
-      .map(entry => `${entry.npc} a dit: "${entry.message}"`)
-      .join('\n');
+    // Build events backwards until we hit limits
+    const events = [];
+    let totalChars = 0;
 
-    return recentConversations ? `\nConversations récentes que tu as entendu:\n${recentConversations}` : '';
+    const timeline = this.sharedTimeline
+      .slice()
+      .reverse()
+      .filter(entry => {
+        // If excludeNpc is specified, exclude only THAT NPC's events
+        // Otherwise include all events
+        if (!excludeNpc) return true;
+        return entry.npc !== excludeNpc.name;
+      });
+
+    console.log(`   → After filtering out ${excludeNpc ? excludeNpc.name : 'none'}: ${timeline.length} events`);
+    if (timeline.length > 0) {
+      const eventList = timeline.map(e => `${e.npc}:${e.type}`).join(', ');
+      console.log(`   → Candidates: ${eventList}`);
+    }
+
+    for (const entry of timeline) {
+      // Format based on type
+      let formatted;
+      if (entry.type === 'dialogue') {
+        formatted = `${entry.npc} dit: "${entry.content}"`;
+      } else if (entry.type === 'action') {
+        formatted = `${entry.npc} fait: ${entry.content}`;
+      } else {
+        formatted = `${entry.npc}: ${entry.content}`;
+      }
+
+      // Check if adding this would exceed limits
+      if (events.length >= limit || totalChars + formatted.length > maxChars) {
+        break;
+      }
+
+      events.unshift(formatted);  // Add to beginning (reverse order)
+      totalChars += formatted.length;
+    }
+
+    const result = events.length > 0
+      ? `\nCe qui se passe autour de toi:\n${events.join('\n')}`
+      : '';
+    console.log(`   → Returning ${events.length} events (${result.length} chars)`);
+    if (result) {
+      console.log(`   → Context to show:\n${result}\n`);
+    }
+    return result;
   }
 
   /**
