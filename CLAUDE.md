@@ -4,109 +4,175 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a browser-based chat interface that runs the Ministral-3-3B AI model locally using WebGPU. It's a static HTML/JavaScript application with no build process or backend server.
+This is a multiplayer autonomous NPC simulation game where each player controls an AI-driven character in a shared world. NPCs generate behavior, dialogue, and emotions in real-time using the Ministral-3-3B AI model running locally via WebGPU. The game runs entirely in the browser with a Node.js WebSocket server for multiplayer synchronization.
 
-## Getting Started
+**Key components:**
+- Browser-based game client with WebGPU-powered AI
+- Node.js WebSocket server for multiplayer coordination
+- Decentralized NPC state stored locally in IndexedDB
+- Real-time streaming text generation with async NPC loops
 
-**Running the Application:**
-- Open `index.html` in a modern web browser (Chrome 113+, Edge 113+, or Firefox Nightly with WebGPU enabled)
-- Use a local web server if opening locally via `file://` causes issues:
-  - VS Code: Install "Live Server" extension and click "Go Live"
-  - Python: `python -m http.server 5501`
-  - Node: `npx http-server`
+## Running the Application
+
+**Browser Client (Game):**
+```bash
+# Open in browser: Chrome 113+, Edge 113+, or Firefox Nightly
+# Use a local web server:
+python -m http.server 8000  # Then visit http://localhost:8000/game.html
+# OR
+npx http-server               # Then visit http://localhost:8080/game.html
+```
+
+**WebSocket Server (for multiplayer):**
+```bash
+npm install  # Install ws dependency
+npm start    # Runs server on port 8080
+```
+
+**Docker:**
+```bash
+docker build -t boudjam2 .
+docker run -p 8080:8080 boudjam2
+```
 
 **Browser Requirements:**
-- WebGPU support is mandatory (Chrome 113+, Edge 113+, or Firefox Nightly)
-- The app checks for WebGPU support and displays an error message if unavailable
+- WebGPU mandatory (Chrome 113+, Edge 113+, Firefox Nightly)
+- ~2GB of available RAM for model loading
+- Modern browser with ES modules support
 
-## Architecture
+## Architecture Overview
 
-### File Structure
-- `index.html` - Main chat interface (both are identical)
-- `js/app.js` - Application entry point that initializes the app and sets up event listeners
-- `js/chat.js` - Core chat functionality including UI rendering, message handling, and AI response generation
-- `js/cache.js` - IndexedDB caching utilities for model files (currently exported but not actively used in app.js)
-- `css/styles.css` - Styling for the chat interface
+### Game Systems
 
-### Application Flow
+The game is built around interconnected systems:
 
-1. **Initialization** (`app.js`):
-   - DOM elements are initialized via `initElements()`
-   - Event listeners are set up via `setupEventListeners()`
-   - Model loading begins via `loadModel()`
+1. **Game Loop** (`js/game.js`):
+   - Main game controller that orchestrates all systems
+   - Canvas-based rendering at ~20 FPS (configurable)
+   - Event queue for managing NPC actions and dialogue
+   - Handles pause/play, character reset, and modal interactions
 
-2. **Model Loading** (`app.js` - `loadModel()`):
-   - Checks WebGPU support
-   - Loads the Ministral-3-3B processor and model from Hugging Face CDN
-   - Model is quantized (fp16/q4) to fit in browser memory
-   - Shows a progress bar during download
-   - Displays the chat interface once ready
+2. **NPC System** (`js/npc.js`, `js/gameAI.js`):
+   - Each NPC has personality, mood, name, and local history
+   - `GameAI` class wraps Ministral-3-3B for NPC text generation
+   - NPCs generate responses asynchronously with their own generation timers
+   - Streaming UI shows token-by-token generation in real-time
 
-3. **Chat Flow** (`chat.js`):
-   - User enters text and presses Enter or clicks Send
-   - `sendMessage()` adds the user message to the UI and calls `generateResponse()`
-   - `generateResponse()`:
-     - Builds chat history with a system prompt that forces JSON output
-     - Applies chat template using the processor
-     - Tokenizes the prompt
-     - Streams the response using TextStreamer (real-time token generation)
-     - Parses JSON from the response and extracts the "response" field
-     - Stores both raw and parsed responses in message history
-   - Stats (TTFT - Time To First Token, Tokens/s) are calculated and displayed
+3. **Network System** (`js/network.js`, `server/server.js`):
+   - WebSocket-based multiplayer synchronization
+   - Server broadcasts events and player state to all connected clients
+   - Local decentralized state with network updates for visibility
+   - Message types: `JOIN`, `UPDATE`, `EVENT`, `PLAYER_LEFT`
+
+4. **Event System** (`js/events.js`):
+   - `EventGenerator` creates structured output from LLM responses
+   - Extracts ACTION, DIALOGUE, THOUGHT, MOOD via regex pattern matching
+   - Fallback behavior if parsing fails (prevents simulation lockups)
+
+5. **Setup & UI** (`js/setup.js`, `js/streaming_ui.js`):
+   - Pre-game character configuration screen
+   - Character editing modal during gameplay
+   - Streaming text display with animations
+
+### Data Flow
+
+**NPC Generation Loop:**
+```
+1. Construct prompt (system rules + NPC context + history)
+2. Call GameAI.generateNPCResponse() with streaming
+3. Display streaming tokens in real-time
+4. Parse regex patterns (ACTION:, DIALOGUE:, MOOD:, etc.)
+5. Update NPC state and add to shared timeline
+6. Broadcast to other players via network
+7. Sleep until next generation (configurable interval)
+8. Repeat
+```
+
+**Message Structure:**
+- **System Prompt**: Game rules, output format constraints, behavior guidelines
+- **User Context**: NPC name, personality, mood, recent history (last 10 events), visible NPCs
+- **No Assistant Role**: Single user message with all context (per SPECS.md requirements)
+
+### Key Files
+
+| File | Purpose |
+|------|---------|
+| `game.html` | Main game interface (setup screen, canvas, UI panels) |
+| `js/game.js` | Core game loop and orchestration |
+| `js/gameAI.js` | Wraps chat.js for NPC-specific generation |
+| `js/network.js` | WebSocket client for multiplayer sync |
+| `js/npc.js` | NPC entity with state, history, generation timer |
+| `js/events.js` | Event parsing and structuring |
+| `js/setup.js` | Pre-game character setup |
+| `js/streaming_ui.js` | Real-time text streaming display |
+| `js/chat.js` | Core Transformers.js integration (shared with original chat app) |
+| `js/cache.js` | IndexedDB caching utilities |
+| `server/server.js` | Node.js WebSocket server |
+| `css/game.css` | Game-specific styling |
+| `css/theme.css` | Color themes and visual design |
+
+### AI Configuration
+
+**From `chat.js`:**
+- `MODEL_ID`: `mistralai/Ministral-3-3B-Instruct-2512-ONNX`
+- `MAX_NEW_TOKENS`: 512 (generation limit per NPC turn)
+- `Temperature`: Configured for consistency
+
+**Generation Behavior:**
+- TextStreamer enables token-by-token streaming for real-time display
+- Processor applies Mistral chat template automatically
+- Model reused across all NPCs when possible (memory efficient)
+
+### Response Parsing Strategy
+
+**Output Format** (from SPECS.md):
+```
+ACTION: [what the NPC does]
+DIALOGUE: [what the NPC says]
+PENSÉE: [internal thought]
+MOOD: [new emotional state]
+```
+
+**Extraction** (in `events.js`):
+- Regex patterns match each marker
+- Non-greedy matching handles missing sections
+- Fallback: Treat entire output as ACTION if parsing fails
+- Never blocks simulation due to parse failure
 
 ### State Management
 
-Global state is centralized in `chat.js`:
-```javascript
-export const chatState = {
-  processor: null,      // Processor instance
-  model: null,          // Model instance
-  messages: [],         // Chat history
-  isGenerating: false,  // Whether generation is in progress
-  lastTTFT: null,       // Last Time To First Token
-  lastTPS: null,        // Last Tokens Per Second
-};
-```
+**Local (IndexedDB):**
+- Player config (name, personality, mood)
+- NPC history (up to 50 recent events)
+- Generated responses (raw + parsed)
+- Shared timeline (visible to all players)
 
-### Key Configuration
-
-From `chat.js`:
-- `MODEL_ID`: 'mistralai/Ministral-3-3B-Instruct-2512-ONNX'
-- `MAX_NEW_TOKENS`: 512 (maximum tokens per response)
-
-### Important Implementation Details
-
-**JSON Response Parsing:**
-- The system prompt forces the model to respond with JSON: `{"response": "...", "type": "text"}`
-- The app uses regex to extract JSON from the response: `/\{[\s\S]*\}/`
-- Only the "response" field is displayed to the user, but both raw and parsed responses are stored
-- If JSON parsing fails, the raw response is displayed
-
-**Streaming & Performance Metrics:**
-- TextStreamer provides token-by-token streaming via callback function
-- TTFT = Time from request start to first token (measures model startup latency)
-- TPS = Tokens per second (measures generation speed)
-- Metrics are calculated using `performance.now()` timestamps
-
-**GPU Resource Management:**
-- The app attempts to dispose of the model when the page unloads via `model.dispose()`
-- Error handling wraps disposal in try-catch since dispose might not always be available
-
-**Message Storage:**
-- Messages include role, content, and optionally raw/parsed fields
-- Full message history is maintained in `chatState.messages` for multi-turn conversations
-- "Clear" button clears all history and resets stats
+**Network (WebSocket):**
+- Broadcasts only essential updates: actions, dialogue, mood changes
+- Each client reconstructs world state independently
+- Low bandwidth due to lightweight event structure
 
 ## Development Notes
 
-- The application is intentionally simple: no build tools, no npm dependencies, just vanilla JavaScript with dynamic imports from CDN
-- The cache.js module is exported but currently unused - it was likely prepared for future model caching optimization
-- All dependencies (Transformers.js, Mistral model) are loaded from CDN, so internet connectivity is required at runtime
-- The UI is fully responsive with mobile-specific breakpoints in CSS
+- **No build process**: Vanilla JavaScript with ES modules imported from CDN
+- **AI model runtime**: WebGPU requires modern browser; model loads from Hugging Face CDN on startup
+- **Async design**: All NPC generation is non-blocking; game loop continues even during long generations
+- **Streaming UX**: Real-time token display makes slow generation feel responsive
+- **Memory management**: Model disposal on page unload; shared model instance across NPCs reduces memory pressure
+- **Resilience**: Simulation continues even with parse failures, incomplete extractions, or network hiccups
 
-## Future Considerations
+## Server Deployment Notes
 
-- Model file caching could be fully implemented using the IndexedDB utilities in `cache.js`
-- Response history export/import could be added
-- Theme switching (dark mode) could complement the current design
-- The two HTML files could be consolidated
+- Server runs on port 8080 (hardcoded in `network.js:18`)
+- Uses basic in-memory player storage (resets on restart)
+- No persistence or database required
+- Scales to hundreds of concurrent players with minimal overhead (mostly broadcasting)
+
+## Prompting Best Practices
+
+See `GUIDE_PROMPTING_MINISTRAL_3B.md` for comprehensive guidance. Key points:
+- Use structured output markers (ACTION:, DIALOGUE:, etc.) for reliable parsing
+- Keep system prompt concise; put all context in user message
+- Temperature 0.1-0.3 for consistent behavior; 0.5+ for creativity
+- Limit history to recent events to avoid token bloat
+- Always provide fallback for parsing failures
