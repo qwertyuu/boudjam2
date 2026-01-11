@@ -35,6 +35,10 @@ export class NPC {
     this.currentActivity = 'idle';
     this.lastInteractionTime = 0;
 
+    // Goals & Relationships (Phase 3 improvements)
+    this.currentGoal = null; // NPC's current objective
+    this.relationships = {}; // { npcName: { attitude: 'hostile'|'amical'|'neutre', history: [] } }
+
     // World bounds (set by game)
     this.worldWidth = 800;
     this.worldHeight = 600;
@@ -162,6 +166,40 @@ export class NPC {
     this.currentThought = text;
     this.dialogueTimer = duration; // Reuse timer for simplicity
     this.currentActivity = 'thinking';
+  }
+
+  /**
+   * Update relationship with another NPC
+   */
+  updateRelationship(npcName, attitude, interaction = null) {
+    if (!this.relationships[npcName]) {
+      this.relationships[npcName] = { attitude: 'neutre', history: [] };
+    }
+    this.relationships[npcName].attitude = attitude;
+    if (interaction) {
+      this.relationships[npcName].history.push(interaction);
+      // Keep only last 3 interactions
+      if (this.relationships[npcName].history.length > 3) {
+        this.relationships[npcName].history = this.relationships[npcName].history.slice(-3);
+      }
+    }
+  }
+
+  /**
+   * Get relationship info for prompt context
+   */
+  getRelationshipsContext() {
+    if (Object.keys(this.relationships).length === 0) return '';
+
+    const relations = Object.entries(this.relationships)
+      .map(([name, rel]) => {
+        const attitude = rel.attitude.toUpperCase();
+        const history = rel.history.length > 0 ? ` (${rel.history[rel.history.length - 1]})` : '';
+        return `- ${name}: ${attitude}${history}`;
+      })
+      .join('\n');
+
+    return `# Relations\n${relations}`;
   }
 
   /**

@@ -106,50 +106,42 @@ export class GameAI {
     chatState.isGenerating = true;
 
     try {
-      // 1. Construct System Prompt
-      // Using the specific "No JSON" instructions from specs
+      // 1. Construct System Prompt (optimized for token efficiency)
       // Extract clean personality (remove "Tu es X." prefix if present)
       const cleanPersonality = npc.personality.replace(/^Tu es [^.]+\.\s*/i, '');
 
-      const systemPrompt = `# Rôle
-Tu es ${npc.name}. ${cleanPersonality}
+      const systemPrompt = `Tu es ${npc.name}, un personnage dans un monde médiéval fantastique.
 
-# Contexte
-Monde médiéval fantastique où la magie existe. Tu es autonome avec tes propres objectifs.
+Trait: ${cleanPersonality}
 
-# Format de sortie
-Réponds avec ces marqueurs (un par ligne):
-DIALOGUE: ce que tu dis à voix haute
-PENSÉE: ta réflexion silencieuse
-ACTION: ton geste physique
-MOOD: ton humeur parmi (joyeux/triste/en colère/calme/excité/curieux/anxieux/confiant/effrayé/méfiant/déterminé/neutre/surpris/fatigué)
+Réponds UNIQUEMENT avec ce format exact:
+ACTION: [geste physique en 1 courte phrase]
+DIALOGUE: [parole] OU PENSÉE: [réflexion interne]
+MOOD: [joyeux|triste|en colère|calme|excité|curieux|anxieux|confiant|effrayé|méfiant|déterminé|neutre|surpris|fatigué]`;
 
-# Exemples
-Exemple 1:
-DIALOGUE: Halte, qui va là ?
-ACTION: dégaine lentement mon épée
+      // 2. Construct User Message (enriched context with relationships)
+      const ownHistoryFormatted = this.formatHistory(npc.localHistory, 3);
+      const currentGoal = npc.currentGoal || 'Aucun objectif particulier';
+      const contextSection = context ? `\n# Situation\n${context}\n` : '';
+      const relationshipsSection = npc.getRelationshipsContext() ? `\n${npc.getRelationshipsContext()}\n` : '';
+
+      const userContent = `# Toi
+Nom: ${npc.name}
+Humeur actuelle: ${npc.mood}
+Objectif: ${currentGoal}
+
+${ownHistoryFormatted ? `# Tes dernières actions\n${ownHistoryFormatted}\n` : ''}${sharedContext ? `# Ce qui se passe autour de toi\n${sharedContext}\n` : ''}${relationshipsSection}${contextSection}# Exemple de réponse attendue
+ACTION: observe les alentours avec méfiance
+DIALOGUE: Qui ose troubler ma méditation ?
 MOOD: méfiant
 
-Exemple 2:
-PENSÉE: Cette météore est un mauvais présage.
-ACTION: lève les yeux vers le ciel
-MOOD: anxieux
+ACTION: se redresse brusquement
+DIALOGUE: Montre-toi, étranger !
+MOOD: en colère
 
-# Contraintes
-- Maximum 1 phrase par marqueur
-- DIALOGUE ou PENSÉE (pas les deux)
-- ACTION et MOOD obligatoires
-- Pas de markdown, pas de **, pas de JSON`;
-
-      // 2. Construct User Message
-      // Build own history (last 3 actions)
-      const ownHistory = npc.localHistory?.slice(-3).map(h => `- ${h}`).join('\n') || '';
-
-      const userContent = `# État actuel
-Humeur: ${npc.mood}
-${ownHistory ? `\n# Tes actions récentes\n${ownHistory}\n` : ''}${sharedContext ? `\n# Ce que font les autres\n${sharedContext}\n` : ''}
-# Situation
-${context || 'Rien de particulier.'}
+ACTION: serre son épée plus fort
+PENSÉE: Je dois protéger ce village coûte que coûte.
+MOOD: déterminé
 
 Que fais-tu maintenant ?`;
 
@@ -190,10 +182,10 @@ Que fais-tu maintenant ?`;
       // Generate
       await this.model.generate({
         ...inputs,
-        max_new_tokens: 150, // Reduced: 4 lines max (DIALOGUE/PENSÉE + ACTION + MOOD)
+        max_new_tokens: 200, // Optimized: format court suffit
         do_sample: true,
-        temperature: 0.3, // Slightly higher for creativity
-        repetition_penalty: 1.2,
+        temperature: 0.1, // Plus cohérent pour les interactions
+        repetition_penalty: 1.3, // Éviter les répétitions
         streamer,
       });
 
@@ -309,6 +301,19 @@ Que fais-tu maintenant ?`;
     }
 
     return result;
+  }
+
+  /**
+   * Format history with relative timestamps
+   */
+  formatHistory(history, maxItems = 3) {
+    if (!history || history.length === 0) return '';
+
+    return history.slice(-maxItems).map((h, i) => {
+      const timeAgo = maxItems - i;
+      const timeLabel = timeAgo === 1 ? 'À l\'instant' : `Il y a ${timeAgo} tours`;
+      return `[${timeLabel}] ${h}`;
+    }).join('\n');
   }
 
   /**
