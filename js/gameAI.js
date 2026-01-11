@@ -108,8 +108,11 @@ export class GameAI {
     try {
       // 1. Construct System Prompt
       // Using the specific "No JSON" instructions from specs
+      // Extract clean personality (remove "Tu es X." prefix if present)
+      const cleanPersonality = npc.personality.replace(/^Tu es [^.]+\.\s*/i, '');
+
       const systemPrompt = `# Rôle
-Tu es ${npc.name}. ${npc.personality}
+Tu es ${npc.name}. ${cleanPersonality}
 
 # Contexte
 Monde médiéval fantastique où la magie existe. Tu es autonome avec tes propres objectifs.
@@ -256,8 +259,9 @@ Que fais-tu maintenant ?`;
   cleanText(text) {
     if (!text) return null;
     return text
-      .replace(/\*\*/g, '')           // Remove **
+      .replace(/\*+/g, '')            // Remove * and **
       .replace(/^\s*[-•]\s*/gm, '')   // Remove bullet points
+      .replace(/^["']+|["']+$/g, '')  // Remove wrapping quotes
       .replace(/\s+/g, ' ')           // Normalize whitespace
       .trim();
   }

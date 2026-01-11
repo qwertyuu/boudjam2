@@ -1,5 +1,5 @@
 $SourcePath = ".\"
-$DestinationPath = "\\raphiverse\raid5\FileBrowser\Static\boudjam3\"
+$DestinationPath = "\\raphiverse\raid5\FileBrowser\Static\boudjam5\"
 
 # Test network connection first
 if (-not (Test-Path $DestinationPath)) {

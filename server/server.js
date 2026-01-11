@@ -62,6 +62,21 @@ wss.on('connection', (ws) => {
                         event: data.event
                     }, playerId);
                     break;
+
+                case 'PLAYER_INFO_UPDATE':
+                    if (playerId && players.has(playerId)) {
+                        const player = players.get(playerId);
+                        // Update metadata generically
+                        Object.assign(player, data);
+
+                        // Broadcast update to others
+                        broadcast({
+                            type: 'PLAYER_INFO_UPDATE',
+                            id: playerId,
+                            ...data
+                        }, playerId);
+                    }
+                    break;
             }
         } catch (e) {
             console.error('Error processing message:', e);
