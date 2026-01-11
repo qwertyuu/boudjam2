@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Fantasy RPG - Autonomous World</title>
+  <title>RPG Fantasy - Monde Autonome</title>
 
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -22,33 +22,33 @@
     <!-- Setup Screen -->
     <div id="setup-screen" class="active">
       <div class="setup-card glass-panel fade-in">
-        <h2>Avatar Setup</h2>
-        <p class="subtitle">Enter the autonomous realm</p>
+        <h2>Création d'Avatar</h2>
+        <p class="subtitle">Entrez dans le monde autonome</p>
 
         <form id="setup-form">
           <div class="form-group">
-            <label for="npc-name">Character Name</label>
-            <input type="text" id="npc-name" required placeholder="e.g. Sir Galahad">
+            <label for="npc-name">Nom du Personnage</label>
+            <input type="text" id="npc-name" required placeholder="ex. Sire Galahad">
           </div>
 
           <div class="form-group">
-            <label for="npc-personality">Personality & Backstory</label>
+            <label for="npc-personality">Personnalité & Histoire</label>
             <textarea id="npc-personality" required rows="4"
-              placeholder="Describe who you are, your manner of speaking, and your goals..."></textarea>
+              placeholder="Décrivez qui vous êtes, votre manière de parler et vos objectifs..."></textarea>
           </div>
 
           <div class="form-group">
-            <label for="npc-mood">Initial Mood</label>
+            <label for="npc-mood">Humeur Initiale</label>
             <select id="npc-mood">
-              <option value="calm">Calm</option>
-              <option value="joyeux">Joyful</option>
-              <option value="curieux">Curious</option>
-              <option value="méfiant">Suspicious</option>
-              <option value="déterminé">Determined</option>
+              <option value="calm">Calme</option>
+              <option value="joyeux">Joyeux</option>
+              <option value="curieux">Curieux</option>
+              <option value="méfiant">Méfiant</option>
+              <option value="déterminé">Déterminé</option>
             </select>
           </div>
 
-          <button type="submit" id="start-btn" class="btn-primary">Enter World</button>
+          <button type="submit" id="start-btn" class="btn-primary">Entrer dans le Monde</button>
         </form>
       </div>
     </div>
@@ -56,42 +56,42 @@
     <!-- Loading Screen -->
     <div id="game-loading" class="hidden">
       <div class="loading-content glass-panel">
-        <h1>Initializing World</h1>
+        <h1>Initialisation du Monde</h1>
         <div class="loader-bar">
           <progress id="game-progress" value="0" max="100"></progress>
         </div>
-        <p id="game-status">Loading assets...</p>
+        <p id="game-status">Chargement des ressources...</p>
       </div>
     </div>
 
     <!-- Game Canvas Container -->
     <div id="game-container" class="hidden">
-      <canvas id="game-canvas" width="800" height="600"></canvas>
+      <canvas id="game-canvas"></canvas>
 
       <!-- UI Overlay -->
       <div id="game-ui">
         <div class="ui-panel top-panel glass-panel">
           <div class="header-info">
-            <h2>Fantasy RPG</h2>
-            <span class="status-badge">Live</span>
+            <h2>RPG Fantasy</h2>
+            <span class="status-badge">En ligne</span>
           </div>
           <div class="controls">
             <button id="pause-btn" class="btn-secondary">Pause</button>
-            <button id="reset-btn" class="btn-secondary">Reset</button>
-            <a href="index.html" class="btn-secondary chat-link">Chat Mode</a>
+            <button id="reset-btn" class="btn-secondary">Réinitialiser</button>
+            <a href="index.html" class="btn-secondary chat-link">Mode Chat</a>
           </div>
         </div>
 
         <div class="ui-panel event-log glass-panel">
-          <h3>World Events</h3>
+          <h3>Événements du Monde</h3>
           <div id="event-log-content"></div>
         </div>
 
         <!-- NEW: Streaming UI Container -->
         <div id="streaming-ui-container" class="glass-panel hidden">
           <div class="stream-header">
-            <span id="streaming-source">NPC Name</span>
-            <span class="typing-indicator">Thinking...</span>
+            <span id="streaming-source">Personnage</span>
+            <span class="typing-indicator">Réflexion...</span>
           </div>
           <div id="streaming-content" class="stream-text">
             <!-- Stream text will appear here -->

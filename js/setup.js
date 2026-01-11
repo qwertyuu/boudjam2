@@ -3,8 +3,6 @@
  * Handles player profile creation and storage
  */
 
-import { NPC_PERSONALITIES } from './npc.js';
-
 export class SetupManager {
     constructor(startCallback) {
         this.startCallback = startCallback;

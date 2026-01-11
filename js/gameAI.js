@@ -180,9 +180,9 @@ Que fais-tu maintenant ?`;
       // Generate
       await this.model.generate({
         ...inputs,
-        max_new_tokens: 300, // Reduced from 1000, usually enough for a turn
+        max_new_tokens: 1000, // Reduced from 1000, usually enough for a turn
         do_sample: true,
-        temperature: 0.7, // Slightly higher for creativity
+        temperature: 0.3, // Slightly higher for creativity
         repetition_penalty: 1.2,
         streamer,
       });

@@ -3,7 +3,7 @@
  * Handles game loop, rendering, and event orchestration
  */
 
-import { NPC, NPC_PERSONALITIES } from './npc.js';
+import { NPC } from './npc.js';
 import { EventGenerator, EVENT_TYPES } from './events.js';
 import { GameAI } from './gameAI.js';
 import { chatState } from './chat.js';
@@ -23,6 +23,7 @@ class Game {
     // Game state
     this.npcs = [];
     this.playerNPC = null;
+    this.initialPlayerData = null; // Store initial player data for reset
     this.eventQueue = [];
     this.isPaused = false;
     this.isModelLoaded = false;
@@ -72,12 +73,15 @@ class Game {
     this.canvas = document.getElementById('game-canvas');
     this.ctx = this.canvas.getContext('2d');
 
+    // Setup canvas resolution
+    this.resizeCanvas();
+
     // Setup event listeners
     this.setupEventListeners();
 
     // Check WebGPU support
     if (!this.gameAI.checkWebGPU()) {
-      this.elements.status.textContent = 'WebGPU not supported. Use Chrome 113+, Edge 113+ or Firefox Nightly.';
+      this.elements.status.textContent = 'WebGPU non supporté. Utilisez Chrome 113+, Edge 113+ ou Firefox Nightly.';
       return;
     }
 
@@ -114,6 +118,9 @@ class Game {
     this.elements.loading.style.display = 'none';
     this.elements.container.classList.remove('hidden');
 
+    // Resize canvas now that container is visible
+    this.resizeCanvas();
+
     this.isInGame = true;
 
     // Start game loop
@@ -126,22 +133,22 @@ class Game {
    */
   async loadModel() {
     try {
-      this.elements.status.textContent = 'Loading AI model...';
+      this.elements.status.textContent = 'Chargement du modèle IA...';
 
       const progressCallback = (info) => {
         if (info.status === 'progress') {
           const percentage = Math.round((info.loaded / info.total) * 100);
           this.elements.progress.value = percentage;
-          this.elements.status.textContent = `Downloading: ${percentage}%`;
+          this.elements.status.textContent = `Téléchargement: ${percentage}%`;
         }
       };
 
       await this.gameAI.initialize(progressCallback);
 
-      this.elements.status.textContent = 'Model loaded! Initializing world...';
+      this.elements.status.textContent = 'Modèle chargé! Initialisation du monde...';
     } catch (error) {
-      console.error('Error loading model:', error);
-      this.elements.status.textContent = `Error: ${error.message}`;
+      console.error('Erreur de chargement du modèle:', error);
+      this.elements.status.textContent = `Erreur: ${error.message}`;
       throw error;
     }
   }
@@ -150,10 +157,10 @@ class Game {
    * Initialize game world
    */
   initializeWorld(playerData) {
-    // Create Default NPCs - REMOVED
-    // Only player NPCs are active now
+    // Store initial player data for reset functionality
+    this.initialPlayerData = playerData;
 
-    // Create Player NPC
+    // Create Player Character
     this.playerNPC = new NPC({
       id: playerData.id,
       name: playerData.name,
@@ -166,13 +173,11 @@ class Game {
     });
     this.playerNPC.mood = playerData.mood;
 
-    // Combine them
+    // Store in array for compatibility with rendering code
     this.npcs = [this.playerNPC];
 
-    // Set world bounds for all NPCs
-    this.npcs.forEach((npc) => {
-      npc.setWorldBounds(this.canvas.width, this.canvas.height);
-    });
+    // Set world bounds for the character
+    this.playerNPC.setWorldBounds(this.canvas.width, this.canvas.height);
 
     // Create event generator
     this.eventGenerator = new EventGenerator(this);
@@ -182,7 +187,46 @@ class Game {
     this.networkManager.connect(playerData);
 
     // Add initial world event
-    this.addEventLogEntry('Game Started', 'Welcome to the Autonomous World!');
+    this.addEventLogEntry('Jeu Démarré', 'Bienvenue dans le Monde Autonome!');
+  }
+
+  /**
+   * Resize canvas to match display size and handle high DPI screens
+   */
+  resizeCanvas() {
+    const container = this.elements.container || document.getElementById('game-container');
+    const dpr = window.devicePixelRatio || 1;
+
+    // Get the display size (CSS size)
+    let displayWidth = container.clientWidth;
+    let displayHeight = container.clientHeight;
+
+    // Fallback to window size if container is not visible yet
+    if (displayWidth === 0 || displayHeight === 0) {
+      displayWidth = window.innerWidth;
+      displayHeight = window.innerHeight;
+    }
+
+    // Set the canvas internal resolution
+    this.canvas.width = displayWidth * dpr;
+    this.canvas.height = displayHeight * dpr;
+
+    // Get a fresh context reference and scale it
+    this.ctx = this.canvas.getContext('2d');
+    this.ctx.scale(dpr, dpr);
+
+    // Set the canvas CSS size to match the container
+    this.canvas.style.width = displayWidth + 'px';
+    this.canvas.style.height = displayHeight + 'px';
+
+    console.log(`Canvas resized: ${displayWidth}x${displayHeight} (DPR: ${dpr})`);
+
+    // Update NPC world bounds if they exist
+    if (this.npcs && this.npcs.length > 0) {
+      this.npcs.forEach((npc) => {
+        npc.setWorldBounds(displayWidth, displayHeight);
+      });
+    }
   }
 
   /**
@@ -191,6 +235,11 @@ class Game {
   setupEventListeners() {
     this.elements.pauseBtn.addEventListener('click', () => this.togglePause());
     this.elements.resetBtn.addEventListener('click', () => this.reset());
+
+    // Handle window resize
+    window.addEventListener('resize', () => {
+      this.resizeCanvas();
+    });
   }
 
   /**
@@ -198,7 +247,7 @@ class Game {
    */
   togglePause() {
     this.isPaused = !this.isPaused;
-    this.elements.pauseBtn.textContent = this.isPaused ? 'Resume' : 'Pause';
+    this.elements.pauseBtn.textContent = this.isPaused ? 'Reprendre' : 'Pause';
   }
 
   /**
@@ -208,24 +257,24 @@ class Game {
     // Clear event queue
     this.eventQueue = [];
 
-    // Reset NPCs
-    this.npcs.forEach((npc, index) => {
-      const personality = Object.values(NPC_PERSONALITIES)[index];
-      npc.x = personality.startX;
-      npc.y = personality.startY;
-      npc.targetX = null;
-      npc.targetY = null;
-      npc.conversationHistory = [];
-      npc.currentDialogue = null;
-      npc.dialogueTimer = 0;
-      npc.currentActivity = 'idle';
-      npc.lastInteractionTime = 0;
-    });
+    // Reset player character to initial position
+    if (this.playerNPC && this.initialPlayerData) {
+      this.playerNPC.x = this.initialPlayerData.startX;
+      this.playerNPC.y = this.initialPlayerData.startY;
+      this.playerNPC.targetX = null;
+      this.playerNPC.targetY = null;
+      this.playerNPC.conversationHistory = [];
+      this.playerNPC.currentDialogue = null;
+      this.playerNPC.dialogueTimer = 0;
+      this.playerNPC.currentActivity = 'idle';
+      this.playerNPC.lastInteractionTime = 0;
+      this.playerNPC.mood = this.initialPlayerData.mood;
+    }
 
     // Clear event log
     this.eventLogEntries = [];
     this.elements.eventLog.innerHTML = '';
-    this.addEventLogEntry('Game Reset', 'World has been reset');
+    this.addEventLogEntry('Jeu Réinitialisé', 'Le monde a été réinitialisé');
 
     // Reset event generator
     this.eventGenerator.lastWorldEventTime = 0;
@@ -381,7 +430,7 @@ class Game {
   async handleEncounter(event) {
     const [npc1, npc2] = event.participants;
 
-    this.addEventLogEntry('Encounter', `${npc1.name} meets ${npc2.name}`, 'encounter');
+    this.addEventLogEntry('Rencontre', `${npc1.name} rencontre ${npc2.name}`, 'encounter');
 
     // NPC1 initiates conversation
     try {
@@ -417,7 +466,7 @@ class Game {
       }
 
     } catch (error) {
-      console.error('Error generating encounter response:', error);
+      console.error('Erreur lors de la génération de la réponse de rencontre:', error);
     }
   }
 
@@ -427,7 +476,7 @@ class Game {
   async handleDiscovery(event) {
     const [npc] = event.participants;
 
-    this.addEventLogEntry('Discovery', `${npc.name} discovers ${event.discovery}`, 'discovery');
+    this.addEventLogEntry('Découverte', `${npc.name} découvre ${event.discovery}`, 'discovery');
 
     try {
       const sharedContext = this.getSharedConversationContext(npc) + this.getRecentEventContext(2);
@@ -443,7 +492,7 @@ class Game {
         this.addToSharedHistory(npc.name, npc.currentDialogue);
       }
     } catch (error) {
-      console.error('Error generating discovery response:', error);
+      console.error('Erreur lors de la génération de la réponse de découverte:', error);
     }
   }
 
@@ -451,7 +500,7 @@ class Game {
    * Handle world event
    */
   async handleWorldEvent(event) {
-    this.addEventLogEntry('World Event', event.context, 'world-event');
+    this.addEventLogEntry('Événement Mondial', event.context, 'world-event');
 
     // Pick a random NPC to react
     const npc = event.participants[Math.floor(Math.random() * event.participants.length)];
@@ -470,7 +519,7 @@ class Game {
         this.addToSharedHistory(npc.name, npc.currentDialogue);
       }
     } catch (error) {
-      console.error('Error generating world event response:', error);
+      console.error('Erreur lors de la génération de la réponse à l\'événement mondial:', error);
     }
   }
 
@@ -496,7 +545,7 @@ class Game {
         this.addToSharedHistory(npc.name, npc.currentDialogue);
       }
     } catch (error) {
-      console.error('Error generating observation response:', error);
+      console.error('Erreur lors de la génération de la réponse d\'observation:', error);
     }
   }
 
@@ -520,7 +569,7 @@ class Game {
         this.addToSharedHistory(npc.name, npc.currentDialogue);
       }
     } catch (error) {
-      console.error('Error generating response:', error);
+      console.error('Erreur lors de la génération de la réponse:', error);
     }
   }
 
@@ -615,9 +664,13 @@ class Game {
    * Render game
    */
   render() {
+    // Get logical dimensions (CSS size, not internal canvas resolution)
+    const width = this.canvas.clientWidth;
+    const height = this.canvas.clientHeight;
+
     // Clear canvas
     this.ctx.fillStyle = '#2C3E50';
-    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    this.ctx.fillRect(0, 0, width, height);
 
     // Draw grid (optional visual reference)
     this.drawGrid();
@@ -639,22 +692,25 @@ class Game {
    * Draw grid
    */
   drawGrid() {
+    const width = this.canvas.clientWidth;
+    const height = this.canvas.clientHeight;
+
     this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
     this.ctx.lineWidth = 1;
 
     // Vertical lines
-    for (let x = 0; x < this.canvas.width; x += 50) {
+    for (let x = 0; x < width; x += 50) {
       this.ctx.beginPath();
       this.ctx.moveTo(x, 0);
-      this.ctx.lineTo(x, this.canvas.height);
+      this.ctx.lineTo(x, height);
       this.ctx.stroke();
     }
 
     // Horizontal lines
-    for (let y = 0; y < this.canvas.height; y += 50) {
+    for (let y = 0; y < height; y += 50) {
       this.ctx.beginPath();
       this.ctx.moveTo(0, y);
-      this.ctx.lineTo(this.canvas.width, y);
+      this.ctx.lineTo(width, y);
       this.ctx.stroke();
     }
   }
@@ -762,17 +818,21 @@ class Game {
 
     const bubbleHeight = lines.length * lineHeight + padding * 2;
 
+    // Get logical dimensions
+    const width = this.canvas.clientWidth;
+    const height = this.canvas.clientHeight;
+
     // Calculate preferred position (centered above NPC)
     let bubbleX = npc.x - bubbleWidth / 2;
     let bubbleY = npc.y - npc.radius - bubbleHeight - 20;
 
     // Clamp to screen bounds with some padding
     const screenPadding = 10;
-    bubbleX = Math.max(screenPadding, Math.min(bubbleX, this.canvas.width - bubbleWidth - screenPadding));
+    bubbleX = Math.max(screenPadding, Math.min(bubbleX, width - bubbleWidth - screenPadding));
 
     // For Y, we try to keep it above. If it goes off top, we might need to clamp.
     // Ideally if it clamps to top, it might overlap NPC. That's acceptable for "visibility".
-    bubbleY = Math.max(screenPadding, Math.min(bubbleY, this.canvas.height - bubbleHeight - screenPadding));
+    bubbleY = Math.max(screenPadding, Math.min(bubbleY, height - bubbleHeight - screenPadding));
 
     // Draw bubble background
     this.ctx.fillStyle = isThought ? 'rgba(240, 248, 255, 0.95)' : 'rgba(255, 255, 255, 0.95)'; // Slight blue for thoughts
