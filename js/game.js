@@ -437,6 +437,11 @@ class Game {
   async handleEncounter(event) {
     const [npc1, npc2] = event.participants;
 
+    // Only generate AI if npc1 is the local player (others will handle their own NPCs)
+    if (npc1 !== this.playerNPC) {
+      return;
+    }
+
     // Check if either NPC is busy
     if (this.isBusy(npc1) || this.isBusy(npc2)) {
       console.log(`Skipping encounter: ${npc1.name} or ${npc2.name} is busy`);
@@ -476,8 +481,8 @@ class Game {
       npc1.lastInteractionTime = Date.now();
       npc2.lastInteractionTime = Date.now();
 
-      // Broadcast if Player NPC
-      if (npc1 === this.playerNPC && this.networkManager) {
+      // Broadcast to other players
+      if (this.networkManager) {
         this.networkManager.sendEvent('DIALOGUE', {
           text: npc1.currentDialogue,
           duration: 6000
@@ -494,6 +499,11 @@ class Game {
    */
   async handleDiscovery(event) {
     const [npc] = event.participants;
+
+    // Only generate AI for local player
+    if (npc !== this.playerNPC) {
+      return;
+    }
 
     if (this.isBusy(npc)) {
       console.log(`Skipping discovery: ${npc.name} is busy`);
@@ -515,6 +525,15 @@ class Game {
       if (npc.currentDialogue) {
         this.addToSharedHistory(npc.name, npc.currentDialogue);
       }
+
+      // Broadcast to other players
+      if (this.networkManager) {
+        this.networkManager.sendEvent('ACTION', {
+          text: `découvre ${event.discovery}: ${npc.currentDialogue}`,
+          duration: 6000
+        });
+      }
+
     } catch (error) {
       console.error('Erreur lors de la génération de la réponse de découverte:', error);
     }
@@ -526,14 +545,13 @@ class Game {
   async handleWorldEvent(event) {
     this.addEventLogEntry('Événement Mondial', event.context, 'world-event');
 
-    // Pick a random NPC who is NOT currently busy
-    const availableNPCs = event.participants.filter(
-      n => n.currentActivity !== 'talking' && n.currentActivity !== 'thinking'
-    );
+    // Only the local player NPC reacts to world events
+    const npc = this.playerNPC;
 
-    if (availableNPCs.length === 0) return;
-
-    const npc = availableNPCs[Math.floor(Math.random() * availableNPCs.length)];
+    // Skip if local player is busy
+    if (npc.currentActivity === 'talking' || npc.currentActivity === 'thinking') {
+      return;
+    }
 
     try {
       const sharedContext = this.getSharedConversationContext(npc) + this.getRecentEventContext(2);
@@ -548,6 +566,15 @@ class Game {
       if (npc.currentDialogue) {
         this.addToSharedHistory(npc.name, npc.currentDialogue);
       }
+
+      // Broadcast to other players
+      if (this.networkManager) {
+        this.networkManager.sendEvent('ACTION', {
+          text: npc.currentDialogue,
+          duration: 6000
+        });
+      }
+
     } catch (error) {
       console.error('Erreur lors de la génération de la réponse à l\'événement mondial:', error);
     }
@@ -558,6 +585,11 @@ class Game {
    */
   async handleObservation(event) {
     const [npc] = event.participants;
+
+    // Only generate AI for local player
+    if (npc !== this.playerNPC) {
+      return;
+    }
 
     if (this.isBusy(npc)) {
       console.log(`Skipping observation: ${npc.name} is busy`);
@@ -579,6 +611,15 @@ class Game {
       if (npc.currentDialogue) {
         this.addToSharedHistory(npc.name, npc.currentDialogue);
       }
+
+      // Broadcast to other players
+      if (this.networkManager) {
+        this.networkManager.sendEvent('ACTION', {
+          text: npc.currentDialogue,
+          duration: 6000
+        });
+      }
+
     } catch (error) {
       console.error('Erreur lors de la génération de la réponse d\'observation:', error);
     }
@@ -589,6 +630,11 @@ class Game {
    */
   async handleResponse(event) {
     const [npc, otherNpc] = event.participants;
+
+    // Only generate AI for local player
+    if (npc !== this.playerNPC) {
+      return;
+    }
 
     if (this.isBusy(npc)) {
       console.log(`Skipping response: ${npc.name} is busy`);
@@ -608,6 +654,15 @@ class Game {
       if (npc.currentDialogue) {
         this.addToSharedHistory(npc.name, npc.currentDialogue);
       }
+
+      // Broadcast to other players
+      if (this.networkManager) {
+        this.networkManager.sendEvent('DIALOGUE', {
+          text: npc.currentDialogue,
+          duration: 6000
+        });
+      }
+
     } catch (error) {
       console.error('Erreur lors de la génération de la réponse:', error);
     }

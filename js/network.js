@@ -67,7 +67,10 @@ export class NetworkManager {
             vx: nav.vx,
             vy: nav.vy,
             mood: nav.mood,
-            activity: nav.currentActivity
+            activity: nav.currentActivity,
+            currentDialogue: nav.currentDialogue,
+            currentAction: nav.currentAction,
+            dialogueTimer: nav.dialogueTimer
         };
 
         this.send('UPDATE', { state });
@@ -157,6 +160,9 @@ export class NetworkManager {
             npc.vy = state.vy;
             npc.mood = state.mood;
             npc.currentActivity = state.activity;
+            if (state.currentDialogue !== undefined) npc.currentDialogue = state.currentDialogue;
+            if (state.currentAction !== undefined) npc.currentAction = state.currentAction;
+            if (state.dialogueTimer !== undefined) npc.dialogueTimer = state.dialogueTimer;
         }
     }
 
