@@ -27,6 +27,7 @@ export class NPC {
     this.localHistory = []; // Actions and dialogues history
     this.thoughts = []; // Internal thoughts history
     this.currentDialogue = null;
+    this.currentAction = null; // Current physical action
     this.dialogueTimer = 0;
     this.mood = 'neutral';
 
@@ -44,7 +45,25 @@ export class NPC {
    * Update movement AI
    */
   updateMovement(deltaTime) {
-    // Pick random target occasionally if idle
+    // REMOTE PLAYERS: Simple dead reckoning based on current velocity
+    if (this.isRemote) {
+      this.x += this.vx * (deltaTime / 1000);
+      this.y += this.vy * (deltaTime / 1000);
+
+      // Update activity based on movement
+      if (Math.abs(this.vx) > 0.1 || Math.abs(this.vy) > 0.1) {
+        this.currentActivity = 'walking';
+      } else {
+        if (this.currentActivity === 'walking') this.currentActivity = 'idle';
+      }
+
+      // Keep within bounds
+      this.x = Math.max(this.margin, Math.min(this.worldWidth - this.margin, this.x));
+      this.y = Math.max(this.margin, Math.min(this.worldHeight - this.margin, this.y));
+      return;
+    }
+
+    // LOCAL AI: Pick random target occasionally if idle
     if (!this.targetX || this.hasReachedTarget()) {
       if (Math.random() < 0.01) { // 1% chance per frame
         this.pickRandomTarget();
@@ -73,8 +92,8 @@ export class NPC {
     }
 
     // Keep within bounds
-    this.x = Math.max(this.margin, Math.min(this.worldWidth - this.margin, this.x));
-    this.y = Math.max(this.margin, Math.min(this.worldHeight - this.margin, this.y));
+    this.x = Math.max(this.margin, Math.min(this.worldWidth - 2 * this.margin, this.x));
+    this.y = Math.max(this.margin, Math.min(this.worldHeight - 2 * this.margin, this.y));
   }
 
   /**
@@ -85,6 +104,7 @@ export class NPC {
       this.dialogueTimer -= deltaTime;
       if (this.dialogueTimer <= 0) {
         this.currentDialogue = null;
+        this.currentAction = null; // Clear action too
         if (this.currentActivity === 'talking') {
           this.currentActivity = 'idle';
         }
@@ -120,6 +140,18 @@ export class NPC {
     this.dialogueTimer = duration;
     this.currentActivity = 'talking';
     this.currentThought = null; // Clear thought when talking
+  }
+
+  /**
+ * Set action with display duration
+ */
+  setAction(text, duration = 6000) {
+    console.log(`(Action) ${text}`);
+    this.currentAction = text;
+    // Don't overwrite timer if dialogue is longer... ideally we track separately but sharing is simpler for now
+    if (this.dialogueTimer < duration) {
+      this.dialogueTimer = duration;
+    }
   }
 
   /**

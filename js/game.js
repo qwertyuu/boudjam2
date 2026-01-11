@@ -92,9 +92,6 @@ class Game {
     // Initialize Streaming UI
     this.streamingUI = new StreamingUI();
 
-    // Load model immediately in background
-    await this.loadModel();
-
     // Check if we have data, if not show setup, else start
     const savedData = localStorage.getItem('my_npc_data');
     if (!savedData) {
@@ -103,12 +100,21 @@ class Game {
     } else {
       this.startGame(JSON.parse(savedData));
     }
+
+    // Load model immediately in background
+    await this.loadModel();
+    this.isModelLoaded = true;
   }
 
   /**
    * Start the game with player data
    */
   startGame(playerData) {
+    if (this.isInGame) return;
+
+    // Ensure setup screen is hidden
+    document.getElementById('setup-screen').style.display = 'none';
+
     this.elements.loading.style.display = 'flex'; // Show loading while world inits
 
     // Initialize game world with player
@@ -124,7 +130,6 @@ class Game {
     this.isInGame = true;
 
     // Start game loop
-    this.isModelLoaded = true;
     requestAnimationFrame((time) => this.gameLoop(time));
   }
 
@@ -420,6 +425,8 @@ class Game {
       );
       return result;
     } finally {
+      // Small delay to ensure the user perceives the end of stream naturally
+      await new Promise(resolve => setTimeout(resolve, 1000));
       if (this.streamingUI) this.streamingUI.endStream();
     }
   }
@@ -429,6 +436,18 @@ class Game {
    */
   async handleEncounter(event) {
     const [npc1, npc2] = event.participants;
+
+    // Check if either NPC is busy
+    if (this.isBusy(npc1) || this.isBusy(npc2)) {
+      console.log(`Skipping encounter: ${npc1.name} or ${npc2.name} is busy`);
+      return;
+    }
+
+    // Check that NPCs are not the same
+    if (npc1.id === npc2.id) {
+      console.log(`Skipping encounter: ${npc1.name} is the same as ${npc2.name}`);
+      return;
+    }
 
     this.addEventLogEntry('Rencontre', `${npc1.name} rencontre ${npc2.name}`, 'encounter');
 
@@ -476,6 +495,11 @@ class Game {
   async handleDiscovery(event) {
     const [npc] = event.participants;
 
+    if (this.isBusy(npc)) {
+      console.log(`Skipping discovery: ${npc.name} is busy`);
+      return;
+    }
+
     this.addEventLogEntry('Découverte', `${npc.name} découvre ${event.discovery}`, 'discovery');
 
     try {
@@ -502,8 +526,14 @@ class Game {
   async handleWorldEvent(event) {
     this.addEventLogEntry('Événement Mondial', event.context, 'world-event');
 
-    // Pick a random NPC to react
-    const npc = event.participants[Math.floor(Math.random() * event.participants.length)];
+    // Pick a random NPC who is NOT currently busy
+    const availableNPCs = event.participants.filter(
+      n => n.currentActivity !== 'talking' && n.currentActivity !== 'thinking'
+    );
+
+    if (availableNPCs.length === 0) return;
+
+    const npc = availableNPCs[Math.floor(Math.random() * availableNPCs.length)];
 
     try {
       const sharedContext = this.getSharedConversationContext(npc) + this.getRecentEventContext(2);
@@ -528,6 +558,11 @@ class Game {
    */
   async handleObservation(event) {
     const [npc] = event.participants;
+
+    if (this.isBusy(npc)) {
+      console.log(`Skipping observation: ${npc.name} is busy`);
+      return;
+    }
 
     this.addEventLogEntry('Observation', event.context, 'observation');
 
@@ -554,6 +589,11 @@ class Game {
    */
   async handleResponse(event) {
     const [npc, otherNpc] = event.participants;
+
+    if (this.isBusy(npc)) {
+      console.log(`Skipping response: ${npc.name} is busy`);
+      return;
+    }
 
     try {
       const sharedContext = this.getSharedConversationContext(npc) + this.getRecentEventContext(2);
@@ -642,6 +682,14 @@ class Game {
   }
 
   /**
+   * Check if NPC is busy
+   */
+  isBusy(npc) {
+    if (!npc) return false;
+    return npc.currentActivity === 'talking' || npc.currentActivity === 'thinking';
+  }
+
+  /**
    * Render event log
    */
   renderEventLog() {
@@ -684,6 +732,13 @@ class Game {
         this.drawSpeechBubble(npc, false);
       } else if (npc.currentThought) {
         this.drawSpeechBubble(npc, true);
+      }
+    });
+
+    // Draw Actions (Below characters)
+    this.npcs.forEach((npc) => {
+      if (npc.currentAction) {
+        this.drawAction(npc);
       }
     });
   }
@@ -751,9 +806,16 @@ class Game {
       if (npc.mood.includes('joy') || npc.mood.includes('heureux')) emoji = '😊';
       else if (npc.mood.includes('tris') || npc.mood.includes('sad')) emoji = '😢';
       else if (npc.mood.includes('col') || npc.mood.includes('angry')) emoji = '😠';
-      else if (npc.mood.includes('calm')) emoji = '😐';
+      else if (npc.mood.includes('calm') || npc.mood.includes('neutre')) emoji = '😐';
       else if (npc.mood.includes('excit') || npc.mood.includes('proud')) emoji = '🤩';
-      else if (npc.mood.includes('peur') || npc.mood.includes('fear')) emoji = '😱';
+      else if (npc.mood.includes('peur') || npc.mood.includes('fear') || npc.mood.includes('effray')) emoji = '😱';
+      else if (npc.mood.includes('anxieux')) emoji = '😰';
+      else if (npc.mood.includes('confiant')) emoji = '😎';
+      else if (npc.mood.includes('méfian')) emoji = '🤨';
+      else if (npc.mood.includes('curieux')) emoji = '🤔';
+      else if (npc.mood.includes('déterminé')) emoji = '😤';
+      else if (npc.mood.includes('surpris')) emoji = '😲';
+      else if (npc.mood.includes('fatigué')) emoji = '😴';
 
       if (emoji) {
         this.ctx.fillText(emoji, npc.x + npc.radius, npc.y - npc.radius);
@@ -875,19 +937,6 @@ class Game {
       this.ctx.arc(tailBaseX + dx * 0.4, tailBaseY + dy * 0.4 + 5, 3, 0, Math.PI * 2);
       this.ctx.fill();
     } else {
-      // Speech tail
-      this.ctx.moveTo(tailBaseX - 10, tailBaseY);
-      this.ctx.lineTo(npcTargetX, npcTargetY);
-      this.ctx.lineTo(tailBaseX + 10, tailBaseY);
-      this.ctx.closePath();
-      this.ctx.fill();
-      // Only stroke if we are above the NPC essentially, otherwise it might look weird crossing the bubble
-      // But for simplicity, we stroke.
-      this.ctx.stroke();
-
-      // Re-fill the bubble body over the tail line where it connects to avoid the line showing inside the bubble?
-      // Actually, drawing the tail AFTER the bubble stroke means the tail stroke covers the bubble border.
-      // We might want to clear the border there.
       // But standard implementation usually just strokes it.
 
       // Let's redraw the bubble fill slightly over the tail connection if we want to hide the line.
@@ -919,6 +968,34 @@ class Game {
     ctx.lineTo(x, y + radius);
     ctx.quadraticCurveTo(x, y, x + radius, y);
     ctx.closePath();
+  }
+
+  /**
+   * Draw action text below NPC
+   */
+  drawAction(npc) {
+    const text = npc.currentAction;
+    if (!text) return;
+
+    this.ctx.font = 'italic 12px Arial';
+    this.ctx.fillStyle = '#E67E22'; // Orange
+    this.ctx.textAlign = 'center';
+
+    // Position below the name
+    const y = npc.y + npc.radius + 30;
+
+    // Simple wrap or max width check?
+    // For actions, usually short, let's just draw direct or clamp
+    const maxWidth = 200;
+    const metrics = this.ctx.measureText(text);
+
+    if (metrics.width > maxWidth) {
+      // Simple truncation if too long, or split?
+      // Let's do a simple 2-line split if needed, or just let it be wide for now
+      this.ctx.fillText(text, npc.x, y);
+    } else {
+      this.ctx.fillText(text, npc.x, y);
+    }
   }
 }
 

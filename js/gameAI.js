@@ -115,14 +115,32 @@ RÈGLES DU MONDE :
 - Magie et créatures existent.
 - Tu es autonome, tu as tes propres objectifs.
 
+MOODS POSSIBLES (choisis-en un de cette liste) :
+- joyeux, triste, en colère, calme, excité, curieux
+- anxieux, confiant, effrayé, méfiant
+- déterminé, neutre, surpris, fatigué
+
 FORMAT DE SORTIE OBLIGATOIRE :
-Réponds UNIQUEMENT en utilisant ces marqueurs :
-ACTION: [ce que tu fais]
-DIALOGUE: [ce que tu dis]
-PENSÉE: [ce que tu penses intérieurement]
-MOOD: [ton émotion: joyeux, triste, en colère, calme, excité, anxieux, confiant, effrayé]
+Réponds UNIQUEMENT en utilisant ces marqueurs. Ne mets RIEN d'autre avant ou après.
+
+EXEMPLES (Follow these strictly):
+
+Exemple 1 (Discussion):
+DIALOGUE: Bonjour voyageur, les routes sont dangereuses ce soir.
+MOOD: confiant
+ACTION: croise les bras
+
+Exemple 2 (Réflexion interne):
+PENSÉE: Il ment, je le sens. Je ne devrais pas lui faire confiance.
+MOOD: méfiant
+ACTION: recule d'un pas
+
+Exemple 3 (Action seule):
+ACTION: ramasse l'épée posée au sol
+MOOD: déterminé
 
 Tu peux utiliser tout ou partie des marqueurs, mais le format doit être respecté.
+Soit bref, 1 phrase maximum.
 Ne génère PAS de JSON.`;
 
       // 2. Construct User Message (Single Context)
@@ -205,6 +223,13 @@ Que fais-tu maintenant ?`;
 
       // Store action/dialogue in local history
       const summary = parsed.dialogue ? `Dit: "${parsed.dialogue}"` : (parsed.action ? `Fait: ${parsed.action}` : 'Rien');
+
+      // Set Action (Visual)
+      // Visualise action alongside dialogue if present
+      if (parsed.action) {
+        npc.setAction(parsed.action);
+      }
+
       if (!npc.localHistory) npc.localHistory = [];
       npc.localHistory.push(summary);
 

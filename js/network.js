@@ -109,6 +109,8 @@ export class NetworkManager {
 
     addRemotePlayer(data) {
         if (this.remotePlayers.has(data.id)) return;
+        if (this.playerId && data.id === this.playerId) return;
+
 
         // Dynamically import NPC to avoid circular dependency issues if possible, 
         // or assume it's globally available/passed. 
@@ -162,11 +164,11 @@ export class NetworkManager {
         const npc = this.remotePlayers.get(id);
         if (!npc) return;
 
-        if (event.type === 'DIALOGUE') {
+        if (event.type === 'DIALOGUE' && event.text) {
             npc.setDialogue(event.text, event.duration || 6000);
             this.game.addEventLogEntry('Chat', `${npc.name}: ${event.text}`, 'chat');
-        } else if (event.type === 'ACTION') {
-            // Show action visual?
+        } else if (event.type === 'ACTION' && event.text) {
+            npc.setAction(event.text, event.duration || 6000);
             this.game.addEventLogEntry('Action', `${npc.name} ${event.text}`, 'action');
         } else if (event.type === 'WAITING') {
             // Optional: show "..." bubble

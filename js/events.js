@@ -12,9 +12,9 @@ export const EVENT_TYPES = {
 
 export const EVENT_TRIGGERS = {
   PROXIMITY_THRESHOLD: 100, // pixels
-  DISCOVERY_CHANCE: 0.005, // 0.5% per frame when idle
-  WORLD_EVENT_INTERVAL: 15000, // 15 seconds
-  OBSERVATION_CHANCE: 0.003, // 0.3% per frame
+  DISCOVERY_CHANCE: 0.001, // Reduced: 0.1% per frame when idle
+  WORLD_EVENT_INTERVAL: 60000, // Increased: 60 seconds
+  OBSERVATION_CHANCE: 0.001, // Reduced: 0.1% per frame
 };
 
 export class EventGenerator {
@@ -73,6 +73,10 @@ export class EventGenerator {
       for (let j = i + 1; j < npcs.length; j++) {
         const npc1 = npcs[i];
         const npc2 = npcs[j];
+
+        // Skip if either is busy
+        if (this.isBusy(npc1) || this.isBusy(npc2)) continue;
+
         const distance = this.getDistance(npc1, npc2);
 
         if (distance < EVENT_TRIGGERS.PROXIMITY_THRESHOLD) {
@@ -104,7 +108,8 @@ export class EventGenerator {
     const events = [];
 
     npcs.forEach((npc) => {
-      if (npc.currentActivity === 'idle' && Math.random() < EVENT_TRIGGERS.DISCOVERY_CHANCE) {
+      // Strict idle check
+      if (!this.isBusy(npc) && npc.currentActivity === 'idle' && Math.random() < EVENT_TRIGGERS.DISCOVERY_CHANCE) {
         const discovery = this.discoveryPool[Math.floor(Math.random() * this.discoveryPool.length)];
         events.push({
           type: EVENT_TYPES.DISCOVERY,
@@ -149,6 +154,9 @@ export class EventGenerator {
     const events = [];
 
     npcs.forEach((npc) => {
+      // Skip if busy
+      if (this.isBusy(npc)) return;
+
       if (Math.random() < EVENT_TRIGGERS.OBSERVATION_CHANCE) {
         const prompt = this.observationPrompts[Math.floor(Math.random() * this.observationPrompts.length)];
         events.push({
@@ -161,6 +169,13 @@ export class EventGenerator {
     });
 
     return events;
+  }
+
+  /**
+   * Check if NPC is busy (talking or thinking)
+   */
+  isBusy(npc) {
+    return npc.currentActivity === 'talking' || npc.currentActivity === 'thinking';
   }
 
   /**
