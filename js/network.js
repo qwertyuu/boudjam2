@@ -15,7 +15,7 @@ export class NetworkManager {
 
     connect(playerData) {
         this.playerId = playerData.id;
-        this.socket = new WebSocket('ws://localhost:8080');
+        this.socket = new WebSocket('wss://boudjam2wss.raphaelcote.com');
 
         this.socket.onopen = () => {
             console.log('Connected to server');
