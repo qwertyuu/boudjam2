@@ -108,52 +108,45 @@ export class GameAI {
     try {
       // 1. Construct System Prompt
       // Using the specific "No JSON" instructions from specs
-      const systemPrompt = `Tu es ${npc.name}. ${npc.personality}
-      
-RÈGLES DU MONDE :
-- Univers médiéval fantastique.
-- Magie et créatures existent.
-- Tu es autonome, tu as tes propres objectifs.
+      const systemPrompt = `# Rôle
+Tu es ${npc.name}. ${npc.personality}
 
-MOODS POSSIBLES (choisis-en un de cette liste) :
-- joyeux, triste, en colère, calme, excité, curieux
-- anxieux, confiant, effrayé, méfiant
-- déterminé, neutre, surpris, fatigué
+# Contexte
+Monde médiéval fantastique où la magie existe. Tu es autonome avec tes propres objectifs.
 
-FORMAT DE SORTIE OBLIGATOIRE :
-Réponds UNIQUEMENT en utilisant ces marqueurs. Ne mets RIEN d'autre avant ou après.
+# Format de sortie
+Réponds avec ces marqueurs (un par ligne):
+DIALOGUE: ce que tu dis à voix haute
+PENSÉE: ta réflexion silencieuse
+ACTION: ton geste physique
+MOOD: ton humeur parmi (joyeux/triste/en colère/calme/excité/curieux/anxieux/confiant/effrayé/méfiant/déterminé/neutre/surpris/fatigué)
 
-EXEMPLES (Follow these strictly):
-
-Exemple 1 (Discussion):
-DIALOGUE: Bonjour voyageur, les routes sont dangereuses ce soir.
-MOOD: confiant
-ACTION: croise les bras
-
-Exemple 2 (Réflexion interne):
-PENSÉE: Il ment, je le sens. Je ne devrais pas lui faire confiance.
+# Exemples
+Exemple 1:
+DIALOGUE: Halte, qui va là ?
+ACTION: dégaine lentement mon épée
 MOOD: méfiant
-ACTION: recule d'un pas
 
-Exemple 3 (Action seule):
-ACTION: ramasse l'épée posée au sol
-MOOD: déterminé
+Exemple 2:
+PENSÉE: Cette météore est un mauvais présage.
+ACTION: lève les yeux vers le ciel
+MOOD: anxieux
 
-Tu peux utiliser tout ou partie des marqueurs, mais le format doit être respecté.
-Soit bref, 1 phrase maximum.
-Ne génère PAS de JSON.`;
+# Contraintes
+- Maximum 1 phrase par marqueur
+- DIALOGUE ou PENSÉE (pas les deux)
+- ACTION et MOOD obligatoires
+- Pas de markdown, pas de **, pas de JSON`;
 
-      // 2. Construct User Message (Single Context)
-      // Combining identity, mood, history, surroundings into one rich context
-      const userContent = `
-[NPC : ${npc.name}]
-[Mood actuel : ${npc.mood}]
-[Dernière pensée : ${npc.thoughts && npc.thoughts.length > 0 ? npc.thoughts[npc.thoughts.length - 1] : 'Aucune'}]
+      // 2. Construct User Message
+      // Build own history (last 3 actions)
+      const ownHistory = npc.localHistory?.slice(-3).map(h => `- ${h}`).join('\n') || '';
 
-[Situation actuelle]
-${context}
-
-${sharedContext}
+      const userContent = `# État actuel
+Humeur: ${npc.mood}
+${ownHistory ? `\n# Tes actions récentes\n${ownHistory}\n` : ''}${sharedContext ? `\n# Ce que font les autres\n${sharedContext}\n` : ''}
+# Situation
+${context || 'Rien de particulier.'}
 
 Que fais-tu maintenant ?`;
 
@@ -194,7 +187,7 @@ Que fais-tu maintenant ?`;
       // Generate
       await this.model.generate({
         ...inputs,
-        max_new_tokens: 1000, // Reduced from 1000, usually enough for a turn
+        max_new_tokens: 150, // Reduced: 4 lines max (DIALOGUE/PENSÉE + ACTION + MOOD)
         do_sample: true,
         temperature: 0.3, // Slightly higher for creativity
         repetition_penalty: 1.2,
@@ -258,6 +251,18 @@ Que fais-tu maintenant ?`;
   }
 
   /**
+   * Clean text by removing markdown artifacts and normalizing whitespace
+   */
+  cleanText(text) {
+    if (!text) return null;
+    return text
+      .replace(/\*\*/g, '')           // Remove **
+      .replace(/^\s*[-•]\s*/gm, '')   // Remove bullet points
+      .replace(/\s+/g, ' ')           // Normalize whitespace
+      .trim();
+  }
+
+  /**
    * Parser using Regex to extract fields from free text
    */
   parseAIResponse(text) {
@@ -279,7 +284,7 @@ Que fais-tu maintenant ?`;
       // The list of known tags to stop at: ACTION:|DIALOGUE:|PENSÉE:|MOOD:
       const regex = new RegExp(`${tag}:\\s*([\\s\\S]+?)(?=(?:ACTION:|DIALOGUE:|PENSÉE:|MOOD:|$))`, 'i');
       const match = text.match(regex);
-      return match ? match[1].trim() : null;
+      return match ? this.cleanText(match[1]) : null;
     };
 
     result.action = extract('ACTION');
@@ -289,12 +294,13 @@ Que fais-tu maintenant ?`;
 
     // FALLBACK 1: If no tags found but text exists, treat as Action or Dialogue
     if (!result.action && !result.dialogue && !result.thought && !result.mood && text.trim().length > 0) {
+      const cleanedText = this.cleanText(text);
       if (text.includes('"')) {
         // Assume speech if quotes present
-        result.dialogue = text.trim();
+        result.dialogue = cleanedText;
       } else {
         // Assume action
-        result.action = text.trim();
+        result.action = cleanedText;
       }
     }
 

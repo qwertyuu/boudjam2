@@ -597,7 +597,7 @@ class Game {
 
     // NPC1 initiates conversation
     try {
-      const sharedContext = this.getUnifiedTimeline(npc1, 10) + this.getRecentEventContext(2);
+      const sharedContext = this.getUnifiedTimeline(npc1, 10);
       await this.generateWithStreaming(
         npc1,
         `Tu rencontres ${npc2.name}. Salue-le et commente ta rencontre avec lui ici.`,
@@ -670,7 +670,7 @@ class Game {
     this.addEventLogEntry('Découverte', `${npc.name} découvre ${event.discovery}`, 'discovery');
 
     try {
-      const sharedContext = this.getUnifiedTimeline(npc, 10) + this.getRecentEventContext(2);
+      const sharedContext = this.getUnifiedTimeline(npc, 10);
       await this.generateWithStreaming(
         npc,
         `Tu découvres ${event.discovery}. Quelle est ta réaction?`,
@@ -722,7 +722,7 @@ class Game {
     }
 
     try {
-      const sharedContext = this.getUnifiedTimeline(npc, 10) + this.getRecentEventContext(2);
+      const sharedContext = this.getUnifiedTimeline(npc, 10);
       await this.generateWithStreaming(
         npc,
         `${event.context}. Qu'observes-tu ou que penses-tu de cela?`,
@@ -778,7 +778,7 @@ class Game {
     this.addEventLogEntry('Observation', event.context, 'observation');
 
     try {
-      const sharedContext = this.getUnifiedTimeline(npc, 10) + this.getRecentEventContext(2);
+      const sharedContext = this.getUnifiedTimeline(npc, 10);
       await this.generateWithStreaming(
         npc,
         `Tu t'arrêtes pour observer tes alentours. Que remarques-tu ou que penses-tu?`,
@@ -832,7 +832,7 @@ class Game {
     }
 
     try {
-      const sharedContext = this.getUnifiedTimeline(npc, 10) + this.getRecentEventContext(2);
+      const sharedContext = this.getUnifiedTimeline(npc, 10);
       await this.generateWithStreaming(
         npc,
         event.context,
@@ -935,14 +935,13 @@ class Game {
     }
 
     for (const entry of timeline) {
-      // Format based on type
+      // Format based on type (more natural, no "fait:")
       let formatted;
       if (entry.type === 'dialogue') {
         formatted = `${entry.npc} dit: "${entry.content}"`;
-      } else if (entry.type === 'action') {
-        formatted = `${entry.npc} fait: ${entry.content}`;
       } else {
-        formatted = `${entry.npc}: ${entry.content}`;
+        // Actions: just use the NPC name + action directly
+        formatted = `${entry.npc} ${entry.content}`;
       }
 
       // Check if adding this would exceed limits
@@ -955,7 +954,7 @@ class Game {
     }
 
     const result = events.length > 0
-      ? `\nCe qui se passe autour de toi:\n${events.join('\n')}`
+      ? events.join('\n')
       : '';
     console.log(`   → Returning ${events.length} events (${result.length} chars)`);
     if (result) {
