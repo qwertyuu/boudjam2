@@ -1,50 +1,67 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Fantasy RPG - AI Watch Mode</title>
-  <link rel="stylesheet" href="css/styles.css">
+  <title>Fantasy RPG - Autonomous World</title>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@500;700&display=swap"
+    rel="stylesheet">
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="css/theme.css">
   <link rel="stylesheet" href="css/game.css">
 </head>
+
 <body>
   <div id="game-app">
-     <!-- Setup Screen -->
-     <div id="setup-screen" style="display: none; position: fixed; inset: 0; background: #2C3E50; z-index: 100; align-items: center; justify-content: center; flex-direction: column; color: white;">
-        <div style="background: #34495E; padding: 2rem; border-radius: 12px; width: 400px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
-            <h2 style="margin-bottom: 20px; text-align: center;">Configuration de votre Avatar</h2>
-            <form id="setup-form" style="display: flex; flex-direction: column; gap: 15px;">
-                <div>
-                    <label for="npc-name" style="display: block; margin-bottom: 5px;">Nom du Personnage</label>
-                    <input type="text" id="npc-name" required style="width: 100%; padding: 8px; border-radius: 4px; border: none;" placeholder="ex: Sir Galahad">
-                </div>
-                
-                <div>
-                    <label for="npc-personality" style="display: block; margin-bottom: 5px;">Personnalité & Trait</label>
-                    <textarea id="npc-personality" required rows="4" style="width: 100%; padding: 8px; border-radius: 4px; border: none;" placeholder="Décrivez qui vous êtes, comment vous parlez..."></textarea>
-                </div>
+    <!-- Setup Screen -->
+    <div id="setup-screen" class="active">
+      <div class="setup-card glass-panel fade-in">
+        <h2>Avatar Setup</h2>
+        <p class="subtitle">Enter the autonomous realm</p>
 
-                <div>
-                    <label for="npc-mood" style="display: block; margin-bottom: 5px;">Humeur Initiale</label>
-                    <select id="npc-mood" style="width: 100%; padding: 8px; border-radius: 4px; border: none;">
-                        <option value="calm">Calme</option>
-                        <option value="joyeux">Joyeux</option>
-                        <option value="curieux">Curieux</option>
-                        <option value="méfiant">Méfiant</option>
-                        <option value="déterminé">Déterminé</option>
-                    </select>
-                </div>
+        <form id="setup-form">
+          <div class="form-group">
+            <label for="npc-name">Character Name</label>
+            <input type="text" id="npc-name" required placeholder="e.g. Sir Galahad">
+          </div>
 
-                <button type="submit" id="start-btn" style="background: #27AE60; color: white; border: none; padding: 12px; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 10px;">Rejoindre le monde</button>
-            </form>
-        </div>
+          <div class="form-group">
+            <label for="npc-personality">Personality & Backstory</label>
+            <textarea id="npc-personality" required rows="4"
+              placeholder="Describe who you are, your manner of speaking, and your goals..."></textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="npc-mood">Initial Mood</label>
+            <select id="npc-mood">
+              <option value="calm">Calm</option>
+              <option value="joyeux">Joyful</option>
+              <option value="curieux">Curious</option>
+              <option value="méfiant">Suspicious</option>
+              <option value="déterminé">Determined</option>
+            </select>
+          </div>
+
+          <button type="submit" id="start-btn" class="btn-primary">Enter World</button>
+        </form>
+      </div>
     </div>
 
     <!-- Loading Screen -->
-    <div id="game-loading">
-      <h1>Loading Fantasy RPG World...</h1>
-      <progress id="game-progress" value="0" max="100"></progress>
-      <p id="game-status">Initializing...</p>
+    <div id="game-loading" class="hidden">
+      <div class="loading-content glass-panel">
+        <h1>Initializing World</h1>
+        <div class="loader-bar">
+          <progress id="game-progress" value="0" max="100"></progress>
+        </div>
+        <p id="game-status">Loading assets...</p>
+      </div>
     </div>
 
     <!-- Game Canvas Container -->
@@ -53,18 +70,32 @@
 
       <!-- UI Overlay -->
       <div id="game-ui">
-        <div class="ui-panel top-panel">
-          <h2>Fantasy RPG - Watch Mode</h2>
+        <div class="ui-panel top-panel glass-panel">
+          <div class="header-info">
+            <h2>Fantasy RPG</h2>
+            <span class="status-badge">Live</span>
+          </div>
           <div class="controls">
-            <button id="pause-btn">Pause</button>
-            <button id="reset-btn">Reset</button>
-            <a href="index.html" class="chat-link">Chat Mode</a>
+            <button id="pause-btn" class="btn-secondary">Pause</button>
+            <button id="reset-btn" class="btn-secondary">Reset</button>
+            <a href="index.html" class="btn-secondary chat-link">Chat Mode</a>
           </div>
         </div>
 
-        <div class="ui-panel event-log">
-          <h3>Event Log</h3>
+        <div class="ui-panel event-log glass-panel">
+          <h3>World Events</h3>
           <div id="event-log-content"></div>
+        </div>
+
+        <!-- NEW: Streaming UI Container -->
+        <div id="streaming-ui-container" class="glass-panel hidden">
+          <div class="stream-header">
+            <span id="streaming-source">NPC Name</span>
+            <span class="typing-indicator">Thinking...</span>
+          </div>
+          <div id="streaming-content" class="stream-text">
+            <!-- Stream text will appear here -->
+          </div>
         </div>
       </div>
     </div>
@@ -72,4 +103,5 @@
 
   <script type="module" src="js/game.js"></script>
 </body>
+
 </html>

@@ -94,7 +94,7 @@ export class GameAI {
   /**
    * Generator for regex-based responses
    */
-  async generateNPCResponse(npc, prompt, context = '', sharedContext = '') {
+  async generateNPCResponse(npc, prompt, context = '', sharedContext = '', onProgress = null) {
     if (!this.isInitialized) {
       throw new Error('GameAI not initialized');
     }
@@ -171,7 +171,9 @@ Que fais-tu maintenant ?`;
         skip_special_tokens: true,
         callback_function: (token) => {
           responseText += token;
-          // Here we could implement real-time partial parsing if needed for UI
+          if (onProgress) {
+            onProgress(token);
+          }
         },
       });
 

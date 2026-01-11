@@ -1,198 +1,374 @@
-/* Game-specific styles */
+/* css/game.css - Premium Component Styles */
+
+/* Base Layout */
 #game-app {
+  position: relative;
   width: 100vw;
   height: 100vh;
   display: flex;
-  align-items: center;
   justify-content: center;
-  background: #1a1a1a;
+  align-items: center;
   overflow: hidden;
 }
 
-#game-loading {
-  width: 100%;
-  height: 100%;
+.hidden {
+  display: none !important;
+}
+
+/* =========================================
+   Setup Screen
+   ========================================= */
+#setup-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 30px;
-  color: white;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
 }
 
-#game-loading h1 {
+#setup-screen.hidden {
+  display: none;
+}
+
+.setup-card {
+  width: 100%;
+  max-width: 450px;
+  padding: 3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.setup-card h2 {
+  font-family: var(--font-display);
   font-size: 2rem;
   margin: 0;
+  text-align: center;
+  background: linear-gradient(to right, var(--primary), var(--accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
-#game-progress {
-  width: 400px;
-  height: 30px;
+.subtitle {
+  text-align: center;
+  color: var(--text-muted);
+  margin-top: -1rem;
+  font-size: 0.9rem;
 }
 
-#game-status {
-  font-size: 1.2rem;
-  color: #ccc;
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
+.form-group label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-highlight);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.form-group input,
+.form-group textarea,
+.form-group select {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 12px;
+  border-radius: 8px;
+  color: white;
+  font-family: var(--font-main);
+  transition: var(--transition-fast);
+}
+
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px var(--primary-glow);
+}
+
+/* =========================================
+   Loading Screen
+   ========================================= */
+#game-loading {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-darker);
+}
+
+.loading-content {
+  padding: 3rem;
+  text-align: center;
+  min-width: 300px;
+}
+
+.loading-content h1 {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.loader-bar {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+
+progress {
+  width: 100%;
+  height: 100%;
+  appearance: none;
+  border: none;
+}
+
+progress::-webkit-progress-bar {
+  background: transparent;
+}
+
+progress::-webkit-progress-value {
+  background: linear-gradient(90deg, var(--primary), var(--accent));
+  border-radius: 3px;
+}
+
+/* =========================================
+   Game Canvas & UI
+   ========================================= */
 #game-container {
   position: relative;
   width: 100%;
   height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
-#game-container.hidden {
-  display: none;
-}
-
-#game-canvas {
-  border: 2px solid #333;
-  background: #2C3E50;
-  box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  /* Canvas background is handled in JS render, but fallback here */
+  background-color: var(--bg-dark);
 }
 
 #game-ui {
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+  inset: 0;
   pointer-events: none;
+  /* Let clicks pass through to canvas principally */
+  padding: 24px;
+  display: grid;
+  grid-template-columns: 300px 1fr 300px;
+  grid-template-rows: auto 1fr auto;
+  gap: 24px;
 }
 
+/* Enable pointer events on actual UI panels */
 .ui-panel {
-  position: absolute;
-  background: rgba(0, 0, 0, 0.8);
-  color: white;
-  padding: 15px;
-  border-radius: 8px;
-  pointer-events: all;
+  pointer-events: auto;
 }
 
+/* Top Panel */
 .top-panel {
-  top: 20px;
-  left: 50%;
-  transform: translateX(-50%);
+  grid-column: 1 / -1;
   display: flex;
-  gap: 20px;
+  justify-content: space-between;
   align-items: center;
+  padding: 12px 24px;
+  max-height: 70px;
 }
 
-.top-panel h2 {
+.header-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.header-info h2 {
   margin: 0;
-  font-size: 1.5rem;
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+}
+
+.status-badge {
+  background: rgba(16, 185, 129, 0.2);
+  color: var(--success);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  border: 1px solid rgba(16, 185, 129, 0.3);
 }
 
 .controls {
   display: flex;
-  gap: 10px;
-  align-items: center;
+  gap: 12px;
 }
 
-.controls button {
-  padding: 8px 16px;
-  background: #4A90E2;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 14px;
-}
-
-.controls button:hover {
-  background: #357ABD;
-}
-
-.controls button:disabled {
-  background: #666;
-  cursor: not-allowed;
-}
-
-.chat-link {
-  padding: 8px 16px;
-  background: #9B59B6;
-  color: white;
-  text-decoration: none;
-  border-radius: 4px;
-  font-size: 14px;
-}
-
-.chat-link:hover {
-  background: #7D3C98;
-}
-
+/* Event Log */
 .event-log {
-  bottom: 20px;
-  right: 20px;
-  width: 300px;
-  max-height: 200px;
-  overflow-y: auto;
+  grid-column: 1;
+  /* Left side */
+  grid-row: 2 / -1;
+  /* Fill remaining height */
+  display: flex;
+  flex-direction: column;
+  max-height: 400px;
+  /* Limit height */
+  align-self: end;
+  /* Stick to bottom left */
+  overflow: hidden;
+  margin-bottom: 20px;
 }
 
 .event-log h3 {
-  margin: 0 0 10px 0;
-  font-size: 1.2rem;
-  border-bottom: 2px solid #FFD700;
-  padding-bottom: 5px;
+  margin: 0;
+  padding: 16px;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(0, 0, 0, 0.2);
 }
 
 #event-log-content {
-  font-size: 12px;
-  line-height: 1.6;
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 0.85rem;
 }
 
 .event-entry {
-  margin-bottom: 8px;
-  padding: 5px;
-  border-left: 3px solid #FFD700;
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.event-entry.encounter {
-  border-left-color: #4A90E2;
-}
-
-.event-entry.discovery {
-  border-left-color: #FFD700;
-}
-
-.event-entry.world-event {
-  border-left-color: #E74C3C;
-}
-
-.event-entry.observation {
-  border-left-color: #9B59B6;
+  padding: 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.03);
+  border-left: 2px solid var(--text-muted);
 }
 
 .event-entry-type {
-  font-weight: bold;
+  font-size: 0.7rem;
+  color: var(--text-muted);
   text-transform: uppercase;
-  font-size: 10px;
-  opacity: 0.7;
+  margin-bottom: 2px;
 }
 
-.event-entry-text {
-  margin-top: 3px;
+.event-entry.encounter {
+  border-color: var(--warning);
 }
 
-/* Scrollbar styling for event log */
-.event-log::-webkit-scrollbar {
-  width: 8px;
+.event-entry.discovery {
+  border-color: var(--accent);
 }
 
-.event-log::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 4px;
+.event-entry.world-event {
+  border-color: var(--primary);
 }
 
-.event-log::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.3);
-  border-radius: 4px;
+/* Streaming UI */
+#streaming-ui-container {
+  grid-column: 2 / 3;
+  /* Center */
+  grid-row: 3;
+  /* Bottom */
+  margin: 0 auto;
+  width: 100%;
+  max-width: 600px;
+  min-height: 120px;
+  max-height: 200px;
+  display: flex;
+  flex-direction: column;
+  transform: translateY(100%);
+  /* Hidden state transition */
+  opacity: 0;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+  pointer-events: auto;
 }
 
-.event-log::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.5);
+#streaming-ui-container.active {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+.stream-header {
+  padding: 8px 16px;
+  background: rgba(0, 0, 0, 0.3);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+#streaming-source {
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.typing-indicator {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-style: italic;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 0.5;
+  }
+
+  50% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0.5;
+  }
+}
+
+.stream-text {
+  padding: 16px;
+  font-family: 'Courier New', monospace;
+  /* Code/Terminal feel */
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--text-main);
+  overflow-y: auto;
+  white-space: pre-wrap;
+}
+
+/* Syntax Highlighting for Stream Tags */
+.stream-tag {
+  font-weight: bold;
+  opacity: 0.8;
+  margin-right: 4px;
+}
+
+.tag-action {
+  color: var(--warning);
+}
+
+.tag-dialogue {
+  color: var(--success);
+}
+
+.tag-thought {
+  color: var(--primary);
+}
+
+.tag-mood {
+  color: var(--accent);
 }

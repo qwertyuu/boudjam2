@@ -10,6 +10,7 @@ import { chatState } from './chat.js';
 import { cacheDB } from './cache.js';
 import { SetupManager } from './setup.js';
 import { NetworkManager } from './network.js';
+import { StreamingUI } from './streaming_ui.js';
 
 class Game {
   constructor() {
@@ -31,7 +32,9 @@ class Game {
     this.gameAI = new GameAI();
     this.eventGenerator = null;
     this.setupManager = null;
+    this.setupManager = null;
     this.networkManager = null;
+    this.streamingUI = null;
 
     // DOM elements
     this.elements = {
@@ -81,6 +84,9 @@ class Game {
     // Initialize Setup Manager
     this.setupManager = new SetupManager((playerData) => this.startGame(playerData));
     this.setupManager.init();
+
+    // Initialize Streaming UI
+    this.streamingUI = new StreamingUI();
 
     // Load model immediately in background
     await this.loadModel();
@@ -346,6 +352,30 @@ class Game {
   }
 
   /**
+   * Wrapper for AI generation with Visual Streaming
+   */
+  async generateWithStreaming(npc, prompt, context, sharedContext) {
+    if (this.streamingUI) {
+      this.streamingUI.startStream(npc.name);
+    }
+
+    try {
+      const result = await this.gameAI.generateNPCResponse(
+        npc,
+        prompt,
+        context,
+        sharedContext,
+        (token) => {
+          if (this.streamingUI) this.streamingUI.appendChunk(token);
+        }
+      );
+      return result;
+    } finally {
+      if (this.streamingUI) this.streamingUI.endStream();
+    }
+  }
+
+  /**
    * Handle encounter event
    */
   async handleEncounter(event) {
@@ -356,7 +386,7 @@ class Game {
     // NPC1 initiates conversation
     try {
       const sharedContext = this.getSharedConversationContext(npc1) + this.getRecentEventContext(2);
-      await this.gameAI.generateNPCResponse(
+      await this.generateWithStreaming(
         npc1,
         `Tu rencontres ${npc2.name}. Salue-le et commente ta rencontre avec lui ici.`,
         '',
@@ -401,7 +431,7 @@ class Game {
 
     try {
       const sharedContext = this.getSharedConversationContext(npc) + this.getRecentEventContext(2);
-      await this.gameAI.generateNPCResponse(
+      await this.generateWithStreaming(
         npc,
         `Tu découvres ${event.discovery}. Quelle est ta réaction?`,
         '',
@@ -428,7 +458,7 @@ class Game {
 
     try {
       const sharedContext = this.getSharedConversationContext(npc) + this.getRecentEventContext(2);
-      await this.gameAI.generateNPCResponse(
+      await this.generateWithStreaming(
         npc,
         `${event.context}. Qu'observes-tu ou que penses-tu de cela?`,
         '',
@@ -454,7 +484,7 @@ class Game {
 
     try {
       const sharedContext = this.getSharedConversationContext(npc) + this.getRecentEventContext(2);
-      await this.gameAI.generateNPCResponse(
+      await this.generateWithStreaming(
         npc,
         `Tu t'arrêtes pour observer tes alentours. Que remarques-tu ou que penses-tu?`,
         '',
@@ -478,7 +508,7 @@ class Game {
 
     try {
       const sharedContext = this.getSharedConversationContext(npc) + this.getRecentEventContext(2);
-      await this.gameAI.generateNPCResponse(
+      await this.generateWithStreaming(
         npc,
         event.context,
         '',
