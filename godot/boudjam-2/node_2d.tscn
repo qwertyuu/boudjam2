@@ -1,0 +1,29 @@
+[gd_scene load_steps=5 format=3 uid="uid://bailmcu351uiw"]
+
+[ext_resource type="Script" uid="uid://bk2y25fq1gwrh" path="res://test.gd" id="1_wtcfe"]
+[ext_resource type="Script" uid="uid://camac03jcnphj" path="res://main.gd" id="2_main"]
+[ext_resource type="Texture2D" uid="uid://b0yrjvuu7vpc0" path="res://lunettes.PNG" id="3_epypp"]
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_0e48y"]
+orientation = 2
+
+[node name="Node2D" type="Node2D"]
+
+[node name="MeshInstance2D" type="MeshInstance2D" parent="."]
+modulate = Color(1, 0.15294118, 0.32156864, 1)
+position = Vector2(8.0000305, -95.999985)
+scale = Vector2(741.99994, 477.49994)
+mesh = SubResource("PlaneMesh_0e48y")
+script = ExtResource("1_wtcfe")
+
+[node name="Camera2D" type="Camera2D" parent="."]
+script = ExtResource("2_main")
+speed = 500.0
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+position = Vector2(-338, -145)
+texture = ExtResource("3_epypp")
+
+[node name="Sprite2D2" type="Sprite2D" parent="."]
+position = Vector2(386, -219)
+texture = ExtResource("3_epypp")
