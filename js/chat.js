@@ -16,6 +16,7 @@ export const chatState = {
   isGenerating: false,
   lastTTFT: null,
   lastTPS: null,
+  lastAddedRole: null, // Track last added message role for alternation
 };
 
 // DOM Elements
@@ -31,6 +32,7 @@ export const elements = {
   statsSpan: null,
   headerStats: null,
   systemPrompt: null,
+  addMessageBtn: null,
 };
 
 /**
@@ -48,6 +50,7 @@ export function initElements() {
   elements.statsSpan = document.getElementById('stats');
   elements.headerStats = document.getElementById('header-stats');
   elements.systemPrompt = document.getElementById('system-prompt');
+  elements.addMessageBtn = document.getElementById('add-message-btn');
 }
 
 /**
@@ -104,16 +107,25 @@ export function updateStats(ttft, tps) {
 }
 
 /**
- * Clear conversation
+ * Remove the last message from conversation and display
  */
 export function clearConversation() {
-  chatState.messages = [];
-  elements.messagesDiv.innerHTML = '';
-  elements.messagesDiv.classList.add('empty');
-  elements.userInput.value = '';
-  chatState.lastTTFT = null;
-  chatState.lastTPS = null;
-  updateStats(null, null);
+  // Remove last message from history
+  if (chatState.messages.length > 0) {
+    chatState.messages.pop();
+  }
+
+  // Remove last message element from DOM
+  const messages = elements.messagesDiv.querySelectorAll('.message');
+  if (messages.length > 0) {
+    messages[messages.length - 1].remove();
+  }
+
+  // Show empty state if no messages remain
+  if (messages.length <= 1) {
+    elements.messagesDiv.classList.add('empty');
+  }
+
   elements.userInput.focus();
 }
 
@@ -138,6 +150,29 @@ export function sendMessage() {
 }
 
 /**
+ * Add a message manually (for few-shot prompting)
+ * Alternates between user and assistant roles automatically
+ */
+export function addMessage() {
+  const text = elements.userInput.value.trim();
+  if (!text) return;
+
+  // Determine role: alternate between user and assistant, starting with user
+  const role = chatState.lastAddedRole === 'user' ? 'assistant' : 'user';
+  chatState.lastAddedRole = role;
+
+  // Add to message history
+  chatState.messages.push({ role, content: text });
+
+  // Render message
+  renderMessage(role, text);
+
+  // Clear input
+  elements.userInput.value = '';
+  elements.userInput.focus();
+}
+
+/**
  * Generate AI response
  */
 export async function generateResponse(userMessage) {
@@ -156,6 +191,19 @@ export async function generateResponse(userMessage) {
         content: systemPromptText
       });
     }
+    const tools = [
+      {  
+        name: "move_to_location",  
+        description: "Moves the NPC to a specified location in the game world",  
+        parameter_definitions: {
+          location: {  
+            description: "The target location to move to (e.g., 'market square', 'castle gate')",  
+            type: "str",  
+            required: true,
+          },  
+        },  
+      },
+    ];
 
     // Add conversation history
     chatMessages.push(...chatState.messages);
@@ -164,6 +212,7 @@ export async function generateResponse(userMessage) {
     const prompt = chatState.processor.apply_chat_template(chatMessages, {
       tokenize: false,
       add_generation_prompt: true,
+      tools: tools,
     });
 
     // Tokenize (text only, no image)

@@ -12,6 +12,7 @@ import {
   checkWebGPU,
   clearConversation,
   sendMessage,
+  addMessage,
   generateResponse,
 } from './chat.js';
 
@@ -114,6 +115,7 @@ function setupEventListeners() {
 
   // Button click handlers
   elements.sendBtn.addEventListener('click', sendMessage);
+  elements.addMessageBtn?.addEventListener('click', addMessage);
   elements.clearBtn.addEventListener('click', clearConversation);
 
   // Add cache info display on startup
